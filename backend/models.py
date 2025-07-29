@@ -7,7 +7,7 @@ db=SQLAlchemy()
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
 
-    id = db.Column(db.String, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String, unique=True, nullable=False)
     user_name = db.Column(db.String, nullable=False)
     # user_type = db.Column(db.String, nullable=False, default="customer")
