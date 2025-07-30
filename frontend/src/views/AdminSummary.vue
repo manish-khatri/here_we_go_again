@@ -27,26 +27,7 @@
         <div class="chart-card">
           <h3>Subject wise top scores</h3>
           <div class="chart-container">
-            <div class="bar-chart">
-              <div class="bar-item">
-                <div class="bar-label">Maths</div>
-                <div class="bar-wrapper">
-                  <div class="bar" :style="{ width: '70%' }">70</div>
-                </div>
-              </div>
-              <div class="bar-item">
-                <div class="bar-label">Physics</div>
-                <div class="bar-wrapper">
-                  <div class="bar" :style="{ width: '90%' }">90</div>
-                </div>
-              </div>
-              <div class="bar-item">
-                <div class="bar-label">Chemistry</div>
-                <div class="bar-wrapper">
-                  <div class="bar" :style="{ width: '80%' }">80</div>
-                </div>
-              </div>
-            </div>
+            <canvas ref="scoresChart" width="400" height="200"></canvas>
           </div>
         </div>
 
@@ -54,35 +35,36 @@
         <div class="chart-card">
           <h3>Subject wise user attempts</h3>
           <div class="chart-container">
-            <div class="donut-chart">
-              <div class="donut">
-                <div class="donut-segment segment-1" style="--percentage: 25%"></div>
-                <div class="donut-segment segment-2" style="--percentage: 25%"></div>
-                <div class="donut-segment segment-3" style="--percentage: 25%"></div>
-                <div class="donut-segment segment-4" style="--percentage: 25%"></div>
-                <div class="donut-center">
-                  <span>Total</span>
-                </div>
-              </div>
-              <div class="donut-legend">
-                <div class="legend-item">
-                  <span class="legend-color segment-1"></span>
-                  <span>01 - Maths</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color segment-2"></span>
-                  <span>02 - Physics</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color segment-3"></span>
-                  <span>03 - Chemistry</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color segment-4"></span>
-                  <span>04 - Biology</span>
-                </div>
-              </div>
-            </div>
+            <canvas ref="attemptsChart" width="400" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- User Performance Over Time -->
+        <div class="chart-card">
+          <h3>User Performance Over Time</h3>
+          <div class="chart-container">
+            <canvas ref="performanceChart" width="400" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- Export Actions -->
+        <div class="chart-card">
+          <h3>Export Data</h3>
+          <div class="export-actions">
+            <button @click="exportAllScores" class="btn btn-primary" :disabled="exportLoading">
+              <i class="bi bi-download"></i>
+              {{ exportLoading ? 'Exporting...' : 'Export All Scores' }}
+            </button>
+            <button @click="checkExportStatus" class="btn btn-secondary" v-if="exportTaskId">
+              <i class="bi bi-check-circle"></i>
+              Check Export Status
+            </button>
+          </div>
+          <div v-if="exportMessage" class="export-message" :class="exportMessageType">
+            {{ exportMessage }}
+            <a v-if="downloadUrl" :href="downloadUrl" class="btn btn-sm btn-success ms-2">
+              <i class="bi bi-download"></i> Download
+            </a>
           </div>
         </div>
       </div>
@@ -91,7 +73,7 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -101,15 +83,212 @@ export default {
     const router = useRouter()
     const authStore = useAuthStore()
     const searchQuery = ref('')
+    
+    // Chart refs
+    const scoresChart = ref(null)
+    const attemptsChart = ref(null)
+    const performanceChart = ref(null)
+    
+    // Export functionality
+    const exportLoading = ref(false)
+    const exportTaskId = ref(null)
+    const exportMessage = ref('')
+    const exportMessageType = ref('')
+    const downloadUrl = ref('')
 
     const logout = () => {
       authStore.logout()
       router.push('/login')
     }
 
+    const loadChartData = async () => {
+      try {
+        // Fetch admin dashboard data
+        const response = await fetch('/api/admin/dashboard')
+        const data = await response.json()
+        
+        if (response.ok) {
+          createScoresChart(data.subjectScores || [])
+          createAttemptsChart(data.subjectAttempts || [])
+          createPerformanceChart(data.performanceData || [])
+        }
+      } catch (error) {
+        console.error('Error loading chart data:', error)
+      }
+    }
+
+    const createScoresChart = (subjectScores) => {
+      if (!scoresChart.value) return
+      
+      const ctx = scoresChart.value.getContext('2d')
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: subjectScores.map(item => item.subject_name || 'Unknown'),
+          datasets: [{
+            label: 'Average Score',
+            data: subjectScores.map(item => item.average_score || 0),
+            backgroundColor: [
+              'rgba(255, 99, 132, 0.8)',
+              'rgba(54, 162, 235, 0.8)',
+              'rgba(255, 205, 86, 0.8)',
+              'rgba(75, 192, 192, 0.8)',
+              'rgba(153, 102, 255, 0.8)'
+            ],
+            borderColor: [
+              'rgba(255, 99, 132, 1)',
+              'rgba(54, 162, 235, 1)',
+              'rgba(255, 205, 86, 1)',
+              'rgba(75, 192, 192, 1)',
+              'rgba(153, 102, 255, 1)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100
+            }
+          }
+        }
+      })
+    }
+
+    const createAttemptsChart = (subjectAttempts) => {
+      if (!attemptsChart.value) return
+      
+      const ctx = attemptsChart.value.getContext('2d')
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: subjectAttempts.map(item => item.subject_name || 'Unknown'),
+          datasets: [{
+            data: subjectAttempts.map(item => item.attempt_count || 0),
+            backgroundColor: [
+              'rgba(255, 99, 132, 0.8)',
+              'rgba(54, 162, 235, 0.8)',
+              'rgba(255, 205, 86, 0.8)',
+              'rgba(75, 192, 192, 0.8)',
+              'rgba(153, 102, 255, 0.8)'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      })
+    }
+
+    const createPerformanceChart = (performanceData) => {
+      if (!performanceChart.value) return
+      
+      const ctx = performanceChart.value.getContext('2d')
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: performanceData.map(item => item.date || 'Unknown'),
+          datasets: [{
+            label: 'Average Performance',
+            data: performanceData.map(item => item.average_score || 0),
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100
+            }
+          }
+        }
+      })
+    }
+
+    const exportAllScores = async () => {
+      try {
+        exportLoading.value = true
+        exportMessage.value = ''
+        
+        const response = await fetch('/api/export/all-scores', {
+          method: 'POST'
+        })
+        
+        const data = await response.json()
+        
+        if (response.ok) {
+          exportTaskId.value = data.task_id
+          exportMessage.value = data.message
+          exportMessageType.value = 'alert-info'
+          
+          // Start checking status
+          setTimeout(checkExportStatus, 2000)
+        } else {
+          exportMessage.value = 'Failed to start export'
+          exportMessageType.value = 'alert-danger'
+        }
+      } catch (error) {
+        console.error('Export error:', error)
+        exportMessage.value = 'Export failed'
+        exportMessageType.value = 'alert-danger'
+      } finally {
+        exportLoading.value = false
+      }
+    }
+
+    const checkExportStatus = async () => {
+      if (!exportTaskId.value) return
+      
+      try {
+        const response = await fetch(`/api/export/status/${exportTaskId.value}`)
+        const data = await response.json()
+        
+        if (data.state === 'SUCCESS') {
+          exportMessage.value = data.message
+          exportMessageType.value = 'alert-success'
+          downloadUrl.value = data.download_url
+        } else if (data.state === 'FAILURE') {
+          exportMessage.value = data.message
+          exportMessageType.value = 'alert-danger'
+        } else {
+          exportMessage.value = data.message
+          exportMessageType.value = 'alert-info'
+          // Continue checking
+          setTimeout(checkExportStatus, 3000)
+        }
+      } catch (error) {
+        console.error('Status check error:', error)
+      }
+    }
+
+    onMounted(() => {
+      loadChartData()
+    })
+
     return {
       searchQuery,
-      logout
+      scoresChart,
+      attemptsChart,
+      performanceChart,
+      exportLoading,
+      exportTaskId,
+      exportMessage,
+      exportMessageType,
+      downloadUrl,
+      logout,
+      exportAllScores,
+      checkExportStatus
     }
   }
 }

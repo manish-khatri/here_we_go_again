@@ -14,6 +14,7 @@ from datetime import datetime
 from backend.tasks import export_user_scores_csv, export_all_scores_csv
 from flask import send_from_directory
 import os
+from backend.cache import cache, invalidate_cache, set_cache, get_cache
 
 EXPORT_DIR = os.path.join(os.path.dirname(__file__), 'exports')
 
@@ -87,7 +88,13 @@ def logout():
 
 # ----------- SUBJECTS CRUD -----------
 @app.get('/api/subjects')
+@cache(timeout=600, key_prefix="subjects")  # Cache for 10 minutes
 def get_subjects():
+    # Try cache first
+    cached_result = get_cache("subjects_data")
+    if cached_result:
+        return jsonify(cached_result), 200
+    
     subjects = Subject.query.all()
     result = []
     for s in subjects:
@@ -109,6 +116,9 @@ def get_subjects():
             'sub_desc': s.sub_desc,
             'chapters': chapters_data
         })
+    
+    # Cache the result
+    set_cache("subjects_data", result, 600)
     return jsonify(result), 200
 
 @app.post('/api/subjects')
@@ -122,6 +132,10 @@ def create_subject():
     subject = Subject(sub_id=data['sub_id'], sub_name=data['sub_name'], sub_desc=data.get('sub_desc'))
     db.session.add(subject)
     db.session.commit()
+    
+    # Invalidate cache
+    invalidate_cache("subjects*")
+    
     return jsonify({'message': 'Subject created'}), 201
 
 @app.put('/api/subjects/<sub_id>')
@@ -395,16 +409,57 @@ def user_dashboard():
 # ----------- ADMIN DASHBOARD APIS -----------
 @app.get('/api/admin/dashboard')
 @roles_required('admin')
+@cache(timeout=300, key_prefix="admin_dashboard")  # Cache for 5 minutes
 def admin_dashboard():
+    # Basic stats
     user_count = User.query.count()
     quiz_count = Quiz.query.count()
     attempt_count = Score.query.count()
     avg_score = db.session.query(db.func.avg(Score.total_score)).scalar() or 0
+    
+    # Subject-wise average scores
+    subject_scores = db.session.query(
+        Subject.sub_name.label('subject_name'),
+        db.func.avg(Score.total_score).label('average_score')
+    ).join(Quiz, Subject.sub_id == Quiz.sub_id)\
+     .join(Score, Quiz.q_id == Score.q_id)\
+     .group_by(Subject.sub_id, Subject.sub_name).all()
+    
+    # Subject-wise attempt counts
+    subject_attempts = db.session.query(
+        Subject.sub_name.label('subject_name'),
+        db.func.count(Score.score_id).label('attempt_count')
+    ).join(Quiz, Subject.sub_id == Quiz.sub_id)\
+     .join(Score, Quiz.q_id == Score.q_id)\
+     .group_by(Subject.sub_id, Subject.sub_name).all()
+    
+    # Performance over time (last 30 days)
+    from datetime import datetime, timedelta
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    performance_data = db.session.query(
+        db.func.date(Score.time_stamp).label('date'),
+        db.func.avg(Score.total_score).label('average_score')
+    ).filter(Score.time_stamp >= thirty_days_ago)\
+     .group_by(db.func.date(Score.time_stamp))\
+     .order_by(db.func.date(Score.time_stamp)).all()
+    
     return jsonify({
         'total_users': user_count,
         'total_quizzes': quiz_count,
         'total_attempts': attempt_count,
-        'average_score': avg_score
+        'average_score': round(avg_score, 2),
+        'subjectScores': [
+            {'subject_name': row.subject_name, 'average_score': round(row.average_score, 2)}
+            for row in subject_scores
+        ],
+        'subjectAttempts': [
+            {'subject_name': row.subject_name, 'attempt_count': row.attempt_count}
+            for row in subject_attempts
+        ],
+        'performanceData': [
+            {'date': str(row.date), 'average_score': round(row.average_score, 2)}
+            for row in performance_data
+        ]
     }), 200
 
 @app.get('/api/admin/users')
@@ -454,26 +509,109 @@ def admin_list_scores():
 @auth_required()
 def trigger_user_csv_export():
     task = export_user_scores_csv.delay(current_user.user_id)
-    return jsonify({'task_id': task.id, 'message': 'CSV export started'}), 202
+    return jsonify({
+        'task_id': task.id, 
+        'message': 'CSV export started. You will be notified when ready.',
+        'status': 'PENDING'
+    }), 202
 
 @app.post('/api/export/all-scores')
 @roles_required('admin')
 def trigger_admin_csv_export():
     task = export_all_scores_csv.delay()
-    return jsonify({'task_id': task.id, 'message': 'CSV export started'}), 202
+    return jsonify({
+        'task_id': task.id, 
+        'message': 'CSV export started. You will be notified when ready.',
+        'status': 'PENDING'
+    }), 202
 
 @app.get('/api/export/status/<task_id>')
+@auth_required()
 def check_export_status(task_id):
     from backend.celery_app import celery
     task = celery.AsyncResult(task_id)
+    
+    response_data = {'state': task.state, 'task_id': task_id}
+    
     if task.state == 'SUCCESS':
         filename = task.result
-        return jsonify({'state': task.state, 'filename': filename, 'download_url': f'/api/export/download/{filename}'}), 200
-    return jsonify({'state': task.state}), 200
+        response_data.update({
+            'filename': filename,
+            'download_url': f'/api/export/download/{filename}',
+            'message': 'Export completed successfully! Click to download.'
+        })
+        return jsonify(response_data), 200
+    elif task.state == 'FAILURE':
+        response_data.update({
+            'error': str(task.info),
+            'message': 'Export failed. Please try again.'
+        })
+        return jsonify(response_data), 500
+    else:
+        response_data.update({
+            'message': 'Export in progress...'
+        })
+        return jsonify(response_data), 200
 
 @app.get('/api/export/download/<filename>')
+@auth_required()
 def download_export(filename):
-    # Security: only allow files from EXPORT_DIR
-    if not os.path.exists(os.path.join(EXPORT_DIR, filename)):
+    # Security: only allow files from EXPORT_DIR and validate user access
+    filepath = os.path.join(EXPORT_DIR, filename)
+    if not os.path.exists(filepath):
         return jsonify({'error': 'File not found'}), 404
+    
+    # Additional security: check if user can access this file
+    if not current_user.has_role('admin') and current_user.user_id not in filename:
+        return jsonify({'error': 'Access denied'}), 403
+        
     return send_from_directory(EXPORT_DIR, filename, as_attachment=True)
+
+# ----------- FORM VALIDATION ENDPOINTS -----------
+@app.post('/api/validate/email')
+def validate_email():
+    """Validate email format and uniqueness"""
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+    
+    if not email:
+        return jsonify({'valid': False, 'error': 'Email is required'}), 400
+    
+    # Basic email format validation
+    import re
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, email):
+        return jsonify({'valid': False, 'error': 'Invalid email format'}), 400
+    
+    # Check uniqueness
+    existing_user = User.query.filter_by(user_mail=email).first()
+    if existing_user:
+        return jsonify({'valid': False, 'error': 'Email already registered'}), 400
+    
+    return jsonify({'valid': True, 'message': 'Email is valid'}), 200
+
+@app.post('/api/validate/quiz-data')
+@roles_required('admin')
+def validate_quiz_data():
+    """Validate quiz creation data"""
+    data = request.get_json()
+    errors = []
+    
+    # Required fields
+    required_fields = ['q_id', 'q_name', 'chp_id', 'sub_id', 'date_of_quiz', 'time_dur']
+    for field in required_fields:
+        if not data.get(field):
+            errors.append(f'{field} is required')
+    
+    # Check if quiz ID already exists
+    if data.get('q_id') and Quiz.query.filter_by(q_id=data['q_id']).first():
+        errors.append('Quiz ID already exists')
+    
+    # Validate chapter exists
+    if data.get('chp_id') and not Chapter.query.filter_by(chp_id=data['chp_id']).first():
+        errors.append('Chapter does not exist')
+    
+    if errors:
+        return jsonify({'valid': False, 'errors': errors}), 400
+    
+    return jsonify({'valid': True, 'message': 'Quiz data is valid'}), 200

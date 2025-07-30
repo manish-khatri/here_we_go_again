@@ -122,7 +122,16 @@ source venv/bin/activate
 celery -A backend.celery_app worker --loglevel=info
 ```
 
-#### Terminal 3 - Start Flask Backend:
+#### Terminal 3 - Start Celery Beat (for scheduled tasks):
+```bash
+# Windows
+start_celery_beat.bat
+
+# Linux/macOS
+./start_celery_beat.sh
+```
+
+#### Terminal 4 - Start Flask Backend:
 ```bash
 # Windows
 venv\Scripts\activate
@@ -133,7 +142,7 @@ source venv/bin/activate
 python app.py
 ```
 
-#### Terminal 4 - Start Vue.js Frontend:
+#### Terminal 5 - Start Vue.js Frontend:
 ```bash
 cd frontend
 npm run dev
@@ -142,54 +151,69 @@ npm run dev
 ### Option 2: Using the Start Script (Coming Soon)
 We'll add a startup script to automate this process.
 
-## 🌐 Access the Application
+## ✨ New Features Implemented
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:5000
+### 🎯 Backend Jobs & Scheduling
+- **Daily Reminders**: Automated daily reminders for inactive users
+- **Monthly Reports**: Comprehensive monthly activity reports with HTML formatting
+- **CSV Export**: User and admin CSV export functionality with download links
+- **Email Integration**: SMTP email support for notifications and reports
 
-## 👤 Default Login Credentials
+### 🚀 Performance & Caching
+- **Redis Caching**: Intelligent caching for subjects, dashboard data, and API responses
+- **Cache Invalidation**: Automatic cache clearing when data is updated
+- **API Performance**: Optimized database queries and response times
 
-After the first run, the application creates default users:
+### � Enhanced Analytics
+- **Real Charts**: Chart.js integration for dynamic data visualization
+- **Subject-wise Analytics**: Performance tracking by subject and chapter
+- **User Performance Trends**: Time-based performance analysis
+- **Export Dashboard**: One-click data export with status tracking
 
-### Admin User:
-- **Email**: admin@email.com
-- **Password**: password
+### 🎨 Bootstrap Integration
+- **Responsive Design**: Full Bootstrap 5 implementation
+- **Form Validation**: HTML5 and JavaScript validation on all forms
+- **Modern UI Components**: Bootstrap cards, modals, alerts, and buttons
+- **Mobile-First Design**: Optimized for all device sizes
 
-### Regular User:
-- **Email**: student@email.com  
-- **Password**: password
+### 🔐 Enhanced Security & Validation
+- **Email Validation**: Real-time email format and uniqueness checking
+- **Password Strength**: Enforced password complexity requirements
+- **Input Sanitization**: Comprehensive input validation on frontend and backend
+- **File Access Control**: Secure file download with user access validation
 
-## 📁 Project Structure
-
-```
-here_we_go_again/
-├── app.py                 # Flask application entry point
-├── req.txt               # Python dependencies
-├── backend/              # Backend Flask application
-│   ├── config.py        # Application configuration
-│   ├── models.py        # Database models
-│   ├── routes.py        # API routes
-│   ├── celery_app.py    # Celery configuration
-│   ├── tasks.py         # Background tasks
-│   └── create_init_data.py # Initial data setup
-├── frontend/            # Vue.js frontend application
-│   ├── package.json     # Node.js dependencies
-│   ├── src/
-│   │   ├── views/       # Vue components/pages
-│   │   ├── stores/      # Pinia stores
-│   │   └── router/      # Vue Router configuration
-│   └── vite.config.js   # Vite configuration
-└── instance/            # Database files (auto-generated)
-```
+### 📱 User Experience Improvements
+- **Loading States**: Visual feedback for all async operations
+- **Error Handling**: Comprehensive error messages and user feedback
+- **Toast Notifications**: Real-time status updates for background jobs
+- **Form Auto-validation**: Real-time validation as users type
 
 ## 🔧 Configuration
+
+### Email Configuration
+Update the email settings in `backend/tasks.py`:
+```python
+EMAIL_CONFIG = {
+    'smtp_server': 'smtp.gmail.com',
+    'smtp_port': 587,
+    'email': 'your-email@gmail.com',
+    'password': 'your-app-password',  # Use app-specific password for Gmail
+}
+```
+
+### Google Chat Webhook (Optional)
+To enable Google Chat notifications, update the webhook URL in `backend/tasks.py`:
+```python
+webhook_url = "YOUR_GOOGLE_CHAT_WEBHOOK_URL"
+```
 
 ### Backend Configuration
 The backend configuration is located in `backend/config.py`. Key settings:
 
 - **Database**: SQLite (development)
-- **Redis**: localhost:6379
+- **Redis**: localhost:6379 (DB 0 for Celery, DB 1 for Cache)
 - **CORS**: Enabled for frontend at localhost:5173
+- **Cache**: 5-minute default timeout for API responses
 
 ### Frontend Configuration
 The frontend configuration is in `frontend/vite.config.js` and is set up to proxy API requests to the Flask backend.

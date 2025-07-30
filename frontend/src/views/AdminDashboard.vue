@@ -20,53 +20,108 @@
     </header>
 
     <main class="main-content">
-      <h1>Subject Management</h1>
-      
-      <div v-if="quizStore.loading" class="loading">
-        Loading subjects...
+      <div class="page-header">
+        <div class="row align-items-center">
+          <div class="col">
+            <h1 class="page-title">
+              <i class="bi bi-collection me-3"></i>Subject Management
+            </h1>
+            <p class="page-subtitle text-muted">Manage your subjects and chapters efficiently</p>
+          </div>
+          <div class="col-auto">
+            <button @click="showNewSubjectModal = true" class="btn btn-primary btn-lg">
+              <i class="bi bi-plus-circle me-2"></i>Add Subject
+            </button>
+          </div>
+        </div>
       </div>
       
-      <div v-else-if="quizStore.error" class="error">
-        Error: {{ quizStore.error }}
+      <div v-if="quizStore.loading" class="loading-state">
+        <div class="loading-content">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+          </div>
+          <h4 class="loading-text">Loading Subjects</h4>
+          <p class="loading-subtitle">Please wait while we fetch your data...</p>
+        </div>
       </div>
       
-      <div v-else class="subjects-container">
-        <div v-for="subject in filteredSubjects" :key="subject.sub_id" class="subject-card">
-          <h3>{{ subject.sub_name }}</h3>
-          <table class="subject-table">
-            <thead>
-              <tr>
-                <th>Chapter</th>
-                <th>No. of Questions</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="chapter in subject.chapters" :key="chapter.chp_id">
-                <td>{{ chapter.chp_name }}</td>
-                <td>{{ chapter.questionCount || 0 }}</td>
-                <td>
-                  <button @click="editChapter(chapter)" class="btn-edit">Edit</button>
-                  <button @click="deleteChapter(chapter.chp_id)" class="btn-delete">Delete</button>
-                </td>
-              </tr>
-              <tr v-if="subject.chapters.length === 0">
-                <td colspan="3" class="no-data">No chapters available</td>
-              </tr>
-            </tbody>
-          </table>
-          <button @click="showNewChapterModal = true; selectedSubjectId = subject.sub_id" class="btn-add-chapter">+ Chapter</button>
+      <div v-else-if="quizStore.error" class="error-state">
+        <div class="alert alert-danger border-0 shadow-sm" role="alert">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+            <div>
+              <h6 class="mb-1">Something went wrong!</h6>
+              <small>{{ quizStore.error }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div v-else class="subjects-section">
+        <div class="row g-4" v-if="filteredSubjects.length > 0">
+          <div class="col-xl-4 col-lg-6 col-md-6" v-for="subject in filteredSubjects" :key="subject.sub_id">
+            <div class="subject-card">
+              <div class="subject-header">
+                <div class="subject-info">
+                  <div class="subject-icon">
+                    <i class="bi bi-book"></i>
+                  </div>
+                  <div>
+                    <h5 class="subject-title">{{ subject.sub_name }}</h5>
+                    <p class="subject-meta">{{ subject.chapters?.length || 0 }} chapters</p>
+                  </div>
+                </div>
+                <div class="subject-actions">
+                  <button @click="openNewChapterModal(subject.sub_id)" 
+                          class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="chapters-list">
+                <div v-if="subject.chapters?.length > 0">
+                  <div class="chapter-item" v-for="chapter in subject.chapters" :key="chapter.chp_id">
+                    <div class="chapter-info">
+                      <div class="chapter-name">{{ chapter.chp_name }}</div>
+                      <div class="chapter-desc">{{ chapter.chp_desc }}</div>
+                    </div>
+                    <div class="chapter-meta">
+                      <span class="question-count">{{ chapter.questionCount || 0 }}</span>
+                      <div class="chapter-actions">
+                        <button @click="editChapter(chapter)" class="action-btn edit-btn">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                        <button @click="deleteChapter(chapter.chp_id)" class="action-btn delete-btn">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="empty-chapters">
+                  <i class="bi bi-inbox"></i>
+                  <span>No chapters yet</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         
-        <div v-if="filteredSubjects.length === 0" class="no-subjects">
-          <p>No subjects available. Create your first subject!</p>
+        <div v-else class="empty-state">
+          <div class="empty-content">
+            <div class="empty-icon">
+              <i class="bi bi-collection"></i>
+            </div>
+            <h3 class="empty-title">No Subjects Found</h3>
+            <p class="empty-subtitle">Get started by creating your first subject</p>
+            <button @click="showNewSubjectModal = true" class="btn btn-primary btn-lg">
+              <i class="bi bi-plus-circle me-2"></i>Create Subject
+            </button>
+          </div>
         </div>
       </div>
-
-      <p class="note">All subjects here...</p>
-
-      <!-- Add New Subject Button -->
-      <button @click="showNewSubjectModal = true" class="btn-add-subject">+ New Subject</button>
     </main>
 
     <!-- New Subject Modal -->
@@ -95,14 +150,20 @@
       </div>
     </div>
 
-    <!-- New Chapter Modal -->
-    <div v-if="showNewChapterModal" class="modal-overlay" @click="showNewChapterModal = false">
+    <!-- New/Edit Chapter Modal -->
+    <div v-if="showNewChapterModal" class="modal-overlay" @click="closeChapterModal">
       <div class="modal-content" @click.stop>
-        <h3>New Chapter</h3>
-        <form @submit.prevent="addNewChapter" class="modal-form">
+        <h3>{{ selectedChapterId ? 'Edit Chapter' : 'New Chapter' }}</h3>
+        <form @submit.prevent="saveChapter" class="modal-form">
           <div class="form-group">
             <label for="chapter-id">Chapter ID</label>
-            <input type="text" id="chapter-id" v-model="newChapter.chp_id" required />
+            <input 
+              type="text" 
+              id="chapter-id" 
+              v-model="newChapter.chp_id" 
+              :disabled="selectedChapterId" 
+              required 
+            />
           </div>
           <div class="form-group">
             <label for="chapter-name">Name</label>
@@ -114,8 +175,10 @@
           </div>
           <p class="note">Note: may include more input fields...</p>
           <div class="modal-actions">
-            <button type="submit" class="btn btn-primary">Save</button>
-            <button type="button" @click="showNewChapterModal = false" class="btn btn-secondary">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              {{ selectedChapterId ? 'Update' : 'Save' }}
+            </button>
+            <button type="button" @click="closeChapterModal" class="btn btn-secondary">Cancel</button>
           </div>
         </form>
       </div>
@@ -139,6 +202,7 @@ export default {
     const showNewSubjectModal = ref(false)
     const showNewChapterModal = ref(false)
     const selectedSubjectId = ref(null)
+    const selectedChapterId = ref(null)
     
     const newSubject = ref({
       sub_id: '',
@@ -183,23 +247,93 @@ export default {
       
       const result = await quizStore.addChapter(selectedSubjectId.value, newChapter.value)
       if (result.success) {
-        showNewChapterModal.value = false
-        newChapter.value = { chp_id: '', name: '', description: '' }
-        selectedSubjectId.value = null
+        closeChapterModal()
       } else {
         alert('Failed to add chapter: ' + result.error)
       }
     }
 
+    const updateChapter = async () => {
+      try {
+        const response = await fetch(`/api/chapters/${selectedChapterId.value}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            chp_name: newChapter.value.name,
+            chp_desc: newChapter.value.description
+          })
+        })
+
+        if (response.ok) {
+          alert('Chapter updated successfully!')
+          closeChapterModal()
+          // Refresh the subjects list
+          await quizStore.fetchSubjects()
+        } else {
+          const error = await response.json()
+          alert(`Failed to update chapter: ${error.error}`)
+        }
+      } catch (error) {
+        console.error('Error updating chapter:', error)
+        alert('Failed to update chapter. Please try again.')
+      }
+    }
+
+    const saveChapter = async () => {
+      if (selectedChapterId.value) {
+        await updateChapter()
+      } else {
+        await addNewChapter()
+      }
+    }
+
+    const closeChapterModal = () => {
+      showNewChapterModal.value = false
+      newChapter.value = { chp_id: '', name: '', description: '' }
+      selectedSubjectId.value = null
+      selectedChapterId.value = null
+    }
+
+    const openNewChapterModal = (subjectId) => {
+      // Clear any existing data
+      newChapter.value = { chp_id: '', name: '', description: '' }
+      selectedChapterId.value = null
+      selectedSubjectId.value = subjectId
+      showNewChapterModal.value = true
+    }
+
     const editChapter = (chapter) => {
-      // TODO: Implement edit chapter functionality
-      console.log('Edit chapter:', chapter)
+      // Open edit modal with chapter data
+      newChapter.value = {
+        chp_id: chapter.chp_id,
+        name: chapter.chp_name,
+        description: chapter.chp_desc
+      }
+      selectedChapterId.value = chapter.chp_id
+      showNewChapterModal.value = true
     }
 
     const deleteChapter = async (chapterId) => {
-      if (confirm('Are you sure you want to delete this chapter?')) {
-        // TODO: Implement delete chapter functionality
-        console.log('Delete chapter:', chapterId)
+      if (confirm('Are you sure you want to delete this chapter? This will also delete all associated quizzes and questions.')) {
+        try {
+          const response = await fetch(`/api/chapters/${chapterId}`, {
+            method: 'DELETE'
+          })
+
+          if (response.ok) {
+            alert('Chapter deleted successfully!')
+            // Refresh the subjects list
+            await quizStore.fetchSubjects()
+          } else {
+            const error = await response.json()
+            alert(`Failed to delete chapter: ${error.error}`)
+          }
+        } catch (error) {
+          console.error('Error deleting chapter:', error)
+          alert('Failed to delete chapter. Please try again.')
+        }
       }
     }
 
@@ -212,6 +346,7 @@ export default {
       showNewSubjectModal,
       showNewChapterModal,
       selectedSubjectId,
+      selectedChapterId,
       newSubject,
       newChapter,
       authStore,
@@ -220,6 +355,9 @@ export default {
       logout,
       addNewSubject,
       addNewChapter,
+      saveChapter,
+      openNewChapterModal,
+      closeChapterModal,
       editChapter,
       deleteChapter
     }
@@ -228,18 +366,567 @@ export default {
 </script>
 
 <style scoped>
+/* Admin Dashboard Styling */
 .admin-dashboard {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: #f8f9fa;
 }
 
+/* Header */
 .header {
-  background: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 1rem 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.search-container {
+  max-width: 300px;
+  margin: 0 2rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+.welcome {
+  font-weight: 600;
+  color: white;
+  font-size: 1.1rem;
+}
+
+/* Main Content */
+.main-content {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 3rem;
+  background: white;
+  padding: 2rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.page-title {
+  color: #374151;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.page-title i {
+  color: #667eea;
+}
+
+.page-subtitle {
+  font-size: 1.1rem;
+  margin-bottom: 0;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.loading-content {
+  text-align: center;
+  max-width: 300px;
+}
+
+.loading-spinner {
+  margin-bottom: 2rem;
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: #374151;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.loading-subtitle {
+  color: #6b7280;
+  margin-bottom: 0;
+}
+
+/* Error State */
+.error-state {
+  margin-bottom: 2rem;
+}
+
+/* Subject Cards */
+.subjects-section {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.subject-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.subject-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.subject-header {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.subject-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.subject-icon {
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.subject-title {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  font-size: 1.3rem;
+}
+
+.subject-meta {
+  margin-bottom: 0;
+  opacity: 0.9;
+  font-size: 0.9rem;
+}
+
+.subject-actions .btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  border-radius: 8px;
+  padding: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.subject-actions .btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+/* Chapters List */
+.chapters-list {
+  padding: 1.5rem;
+}
+
+.chapter-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.chapter-item:hover {
+  background: #e9ecef;
+  transform: translateX(4px);
+}
+
+.chapter-item:last-child {
+  margin-bottom: 0;
+}
+
+.chapter-info {
+  flex: 1;
+}
+
+.chapter-name {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.chapter-desc {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.chapter-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.question-count {
+  background: #667eea;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.chapter-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.edit-btn {
+  background: #10b981;
+  color: white;
+}
+
+.edit-btn:hover {
+  background: #059669;
+  transform: scale(1.1);
+}
+
+.delete-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.delete-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+.empty-chapters {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.empty-chapters i {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.empty-content {
+  text-align: center;
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.empty-icon {
+  margin-bottom: 2rem;
+}
+
+.empty-icon i {
+  font-size: 5rem;
+  color: #d1d5db;
+}
+
+.empty-title {
+  color: #374151;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.empty-subtitle {
+  color: #6b7280;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+/* Buttons */
+.btn {
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.75rem 1.5rem;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-lg {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-content h3 {
+  margin-bottom: 1.5rem;
+  color: #374151;
+  font-weight: 700;
+  text-align: center;
+}
+
+.modal-form .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.modal-form label {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.modal-form input,
+.modal-form textarea {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.modal-form input:focus,
+.modal-form textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.modal-form input:disabled {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.modal-form textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  padding: 0.75rem 1.5rem;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+  transform: translateY(-1px);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .nav {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .search-container {
+    margin: 0;
+    max-width: 100%;
+  }
+  
+  .main-content {
+    padding: 1rem;
+  }
+  
+  .page-header {
+    padding: 1.5rem;
+  }
+  
+  .page-title {
+    font-size: 2rem;
+  }
+  
+  .subject-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .chapter-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .chapter-meta {
+    align-self: stretch;
+    justify-content: space-between;
+  }
 }
 
 .nav {

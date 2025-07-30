@@ -1,25 +1,36 @@
 <template>
   <div class="admin-dashboard">
-    <!-- Navigation Header -->
-    <header class="header">
-      <nav class="nav">
-        <router-link to="/admin/dashboard" class="nav-link">Home</router-link>
-        <router-link to="/admin/quiz" class="nav-link active">Quiz</router-link>
-        <router-link to="/admin/summary" class="nav-link">Summary</router-link>
-        <button @click="logout" class="nav-link logout-btn">Logout</button>
-      </nav>
-      <div class="search-container">
-        <input 
-          type="text" 
-          v-model="searchQuery" 
-          placeholder="Search..." 
-          class="search-input"
-        />
+    <!-- Header Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+      <div class="container-fluid">
+        <div class="navbar-nav me-auto">
+          <router-link to="/admin/dashboard" class="nav-link">
+            <i class="bi bi-house me-2"></i>Home
+          </router-link>
+          <router-link to="/admin/quiz" class="nav-link active">
+            <i class="bi bi-puzzle me-2"></i>Quiz
+          </router-link>
+          <router-link to="/admin/summary" class="nav-link">
+            <i class="bi bi-graph-up me-2"></i>Summary
+          </router-link>
+        </div>
+        <div class="d-flex align-items-center">
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            placeholder="Search..." 
+            class="form-control search-input me-3"
+          />
+          <span class="navbar-text me-3">Welcome Admin</span>
+          <button @click="logout" class="btn btn-outline-light">
+            <i class="bi bi-box-arrow-right me-2"></i>Logout
+          </button>
+        </div>
       </div>
-      <div class="welcome">Welcome Admin</div>
-    </header>
+    </nav>
 
-    <main class="main-content">
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
       <!-- Page Header -->
       <div class="page-header mb-4">
         <div class="header-content">
@@ -34,7 +45,6 @@
           </button>
         </div>
       </div>
-
       <!-- Loading State with Skeleton -->
       <div v-if="loading" class="skeleton-loader">
         <div class="skeleton-card" v-for="n in 4" :key="n">
@@ -139,181 +149,136 @@
           </button>
         </div>
       </div>
-    </main>
-
-    <!-- Quiz Modal -->
-    <div v-if="showNewQuizModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              <i class="bi bi-puzzle-fill me-2"></i>
-              {{ selectedQuizId ? 'Edit Quiz' : 'Create New Quiz' }}
-            </h5>
-            <button type="button" class="btn-close" @click="closeQuizModal"></button>
-          </div>
-          <div class="modal-body">
-            <form @submit.prevent="saveQuiz" id="quizForm">
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="quiz-name" class="form-label">Quiz Name</label>
-                    <input type="text" 
-                           id="quiz-name" 
-                           class="form-control" 
-                           v-model="newQuiz.name" 
-                           placeholder="Enter quiz name"
-                           required />
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="chapter-select" class="form-label">Chapter</label>
-                    <select id="chapter-select" class="form-select" v-model="newQuiz.chapterId" required>
-                      <option value="">Select Chapter</option>
-                      <option v-for="chapter in availableChapters" 
-                              :key="chapter.chp_id" 
-                              :value="chapter.chp_id">
-                        {{ chapter.chp_name }}
-                      </option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="quiz-date" class="form-label">Quiz Date</label>
-                    <input type="date" 
-                           id="quiz-date" 
-                           class="form-control" 
-                           v-model="newQuiz.date" 
-                           required />
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="quiz-duration" class="form-label">Duration (minutes)</label>
-                    <input type="number" 
-                           id="quiz-duration" 
-                           class="form-control" 
-                           v-model="newQuiz.duration" 
-                           min="1" 
-                           placeholder="60"
-                           required />
-                  </div>
-                </div>
-              </div>
-              <div class="mb-3">
-                <label for="quiz-remarks" class="form-label">Remarks (Optional)</label>
-                <textarea id="quiz-remarks" 
-                          class="form-control" 
-                          v-model="newQuiz.remarks" 
-                          rows="3" 
-                          placeholder="Additional notes about this quiz..."></textarea>
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeQuizModal">Cancel</button>
-            <button type="submit" form="quizForm" class="btn btn-primary">
-              <i class="bi bi-check-circle me-2"></i>
-              {{ selectedQuizId ? 'Update Quiz' : 'Create Quiz' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
-    <!-- Question Modal -->
-    <div v-if="showNewQuestionModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              <i class="bi bi-question-circle-fill me-2"></i>
-              {{ selectedQuestionId ? 'Edit Question' : 'Add New Question' }}
-            </h5>
-            <button type="button" class="btn-close" @click="closeQuestionModal"></button>
-          </div>
-          <div class="modal-body">
-            <form @submit.prevent="saveQuestion" id="questionForm">
-              <div class="mb-3" v-if="!selectedQuestionId">
-                <label for="question-quiz" class="form-label">Quiz</label>
-                <select id="question-quiz" class="form-select" v-model="newQuestion.quizId" required>
-                  <option value="">Select Quiz</option>
-                  <option v-for="quiz in quizzes" 
-                          :key="quiz.q_id" 
-                          :value="quiz.q_id">
-                    {{ quiz.q_name }}
+    <!-- New/Edit Quiz Modal -->
+    <div v-if="showNewQuizModal" class="modal-overlay" @click="closeQuizModal">
+      <div class="modal-content" @click.stop>
+        <h3>{{ selectedQuizId ? 'Edit Quiz' : 'New Quiz' }}</h3>
+        <form @submit.prevent="saveQuiz" class="modal-form">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="quiz-name">Quiz Name</label>
+                <input type="text" id="quiz-name" v-model="newQuiz.name" required />
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="chapter-select">Chapter</label>
+                <select id="chapter-select" v-model="newQuiz.chapterId" required>
+                  <option value="">Select Chapter</option>
+                  <option v-for="chapter in availableChapters" 
+                          :key="chapter.chp_id" 
+                          :value="chapter.chp_id">
+                    {{ chapter.chp_name }} ({{ chapter.subject_name }})
                   </option>
                 </select>
               </div>
-              
-              <div class="mb-3">
-                <label for="question-statement" class="form-label">Question Statement</label>
-                <textarea id="question-statement" 
-                          class="form-control" 
-                          v-model="newQuestion.statement" 
-                          rows="3" 
-                          placeholder="Enter the question statement here..."
-                          required></textarea>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="quiz-date">Quiz Date</label>
+                <input type="date" id="quiz-date" v-model="newQuiz.date" required />
               </div>
-              
-              <!-- Answer Options -->
-              <div class="mb-4">
-                <label class="form-label">Answer Options</label>
-                <div class="row">
-                  <div class="col-md-6 mb-3" v-for="(option, index) in newQuestion.options" :key="index">
-                    <div class="input-group">
-                      <span class="input-group-text">{{ String.fromCharCode(65 + index) }}</span>
-                      <input type="text" 
-                             class="form-control" 
-                             v-model="newQuestion.options[index]" 
-                             :placeholder="'Option ' + String.fromCharCode(65 + index)"
-                             required />
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="mt-3">
-                  <label class="form-label">Correct Answer</label>
-                  <div class="btn-group w-100" role="group">
-                    <input type="radio" class="btn-check" :id="'option-' + (index + 1)" 
-                           :value="index + 1" v-model="newQuestion.correctOption"
-                           v-for="(option, index) in newQuestion.options" :key="'radio-' + index">
-                    <label class="btn btn-outline-primary" :for="'option-' + (index + 1)"
-                           v-for="(option, index) in newQuestion.options" :key="'label-' + index">
-                      {{ String.fromCharCode(65 + index) }}
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="quiz-duration">Duration (minutes)</label>
+                <input type="number" id="quiz-duration" v-model="newQuiz.duration" min="5" max="180" required />
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="quiz-remarks">Remarks</label>
+            <textarea id="quiz-remarks" v-model="newQuiz.remarks" rows="3"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="btn btn-primary">
+              {{ selectedQuizId ? 'Update Quiz' : 'Create Quiz' }}
+            </button>
+            <button type="button" @click="closeQuizModal" class="btn btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- New/Edit Question Modal -->
+    <div v-if="showNewQuestionModal" class="modal-overlay" @click="closeQuestionModal">
+      <div class="modal-content large-modal" @click.stop>
+        <h3>{{ selectedQuestionId ? 'Edit Question' : 'New Question' }}</h3>
+        <form @submit.prevent="saveQuestion" class="modal-form">
+          <div class="form-group">
+            <label for="question-quiz">Quiz</label>
+            <select id="question-quiz" v-model="newQuestion.quizId" required :disabled="selectedQuestionId">
+              <option value="">Select Quiz</option>
+              <option v-for="quiz in quizzes" 
+                      :key="quiz.q_id" 
+                      :value="quiz.q_id">
+                {{ quiz.q_name }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="question-statement">Question Statement</label>
+            <textarea id="question-statement" 
+                      v-model="newQuestion.statement" 
+                      rows="3" 
+                      placeholder="Enter the question statement here..."
+                      required></textarea>
+          </div>
+          
+          <!-- Answer Options -->
+          <div class="options-section">
+            <h5>Answer Options</h5>
+            <div class="options-grid">
+              <div class="option-group" v-for="(option, index) in newQuestion.options" :key="index">
+                <label :for="'option-' + (index + 1)">Option {{ String.fromCharCode(65 + index) }}</label>
+                <div class="option-input-group">
+                  <input type="text" 
+                         :id="'option-' + (index + 1)" 
+                         v-model="newQuestion.options[index]" 
+                         :placeholder="'Enter option ' + String.fromCharCode(65 + index)"
+                         required />
+                  <div class="form-check">
+                    <input class="form-check-input" 
+                           type="radio" 
+                           :id="'correct-' + (index + 1)"
+                           :value="index + 1" 
+                           v-model="newQuestion.correctOption">
+                    <label class="form-check-label" :for="'correct-' + (index + 1)">
+                      Correct
                     </label>
                   </div>
                 </div>
               </div>
-              
-              <div class="mb-3">
-                <label for="question-explanation" class="form-label">Explanation (Optional)</label>
-                <textarea id="question-explanation" 
-                          class="form-control" 
-                          v-model="newQuestion.explanation" 
-                          rows="2" 
-                          placeholder="Provide an explanation for the correct answer..."></textarea>
-              </div>
-            </form>
+            </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeQuestionModal">Cancel</button>
+          
+          <div class="form-group">
+            <label for="question-explanation">Explanation (Optional)</label>
+            <textarea id="question-explanation" 
+                      v-model="newQuestion.explanation" 
+                      rows="2" 
+                      placeholder="Provide an explanation for the correct answer..."></textarea>
+          </div>
+          
+          <div class="modal-actions">
+            <button type="submit" class="btn btn-primary">
+              {{ selectedQuestionId ? 'Update Question' : 'Save Question' }}
+            </button>
             <button type="button" 
                     @click="saveAndAddAnother" 
                     v-if="!selectedQuestionId"
                     class="btn btn-success">
-              <i class="bi bi-plus-circle me-2"></i>Save & Add Another
+              Save & Add Another
             </button>
-            <button type="submit" form="questionForm" class="btn btn-primary">
-              <i class="bi bi-check-circle me-2"></i>
-              {{ selectedQuestionId ? 'Update Question' : 'Save Question' }}
-            </button>
+            <button type="button" @click="closeQuestionModal" class="btn btn-secondary">Cancel</button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   </div>
@@ -382,7 +347,7 @@ export default {
         loading.value = true
         error.value = ''
         
-        const response = await fetch('/api/admin/quizzes')
+        const response = await fetch('/api/quizzes')
         if (response.ok) {
           const data = await response.json()
           quizzes.value = data
@@ -746,73 +711,62 @@ export default {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Header */
-.header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 1rem 2rem;
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.nav {
-  display: flex;
-  gap: 1.5rem;
-}
-
-.nav-link {
-  color: white;
-  text-decoration: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.nav-link:hover,
-.nav-link.active {
-  background: rgba(255, 255, 255, 0.2);
+/* Navigation */
+.navbar {
+  background: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-.search-container {
-  max-width: 300px;
-  margin: 0 2rem;
+.navbar-nav .nav-link {
+  color: #2d3748 !important;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  margin: 0 0.25rem;
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
 .search-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: none;
-  border-radius: 12px;
   background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  font-size: 0.95rem;
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 25px;
+  padding: 0.5rem 1rem;
+  width: 250px;
   transition: all 0.3s ease;
 }
 
 .search-input:focus {
   outline: none;
+  border-color: #667eea;
   background: white;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.2);
 }
 
-.welcome {
+.navbar-text {
+  color: #2d3748 !important;
   font-weight: 600;
-  color: white;
-  font-size: 1.1rem;
 }
 
-/* Main Content */
-.main-content {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+.btn-outline-light {
+  border-color: rgba(102, 126, 234, 0.3);
+  color: #667eea;
+  font-weight: 600;
+}
+
+.btn-outline-light:hover {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-color: #667eea;
+  color: white;
 }
 
 /* Page Header */
@@ -1076,6 +1030,7 @@ export default {
   font-size: 1.1rem;
 }
 
+
 .question-preview {
   display: flex;
   align-items: center;
@@ -1217,26 +1172,6 @@ export default {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-  }
-  
-  .nav {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  
-  .search-container {
-    margin: 0;
-    max-width: 100%;
-  }
-  
-  .main-content {
-    padding: 1rem;
-  }
-  
   .header-content {
     flex-direction: column;
     gap: 1rem;
@@ -1259,4 +1194,4 @@ export default {
     width: 100%;
   }
 }
-</style>
+</style> 

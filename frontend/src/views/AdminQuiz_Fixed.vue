@@ -1,25 +1,36 @@
 <template>
   <div class="admin-dashboard">
-    <!-- Navigation Header -->
-    <header class="header">
-      <nav class="nav">
-        <router-link to="/admin/dashboard" class="nav-link">Home</router-link>
-        <router-link to="/admin/quiz" class="nav-link active">Quiz</router-link>
-        <router-link to="/admin/summary" class="nav-link">Summary</router-link>
-        <button @click="logout" class="nav-link logout-btn">Logout</button>
-      </nav>
-      <div class="search-container">
-        <input 
-          type="text" 
-          v-model="searchQuery" 
-          placeholder="Search..." 
-          class="search-input"
-        />
+    <!-- Header Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+      <div class="container-fluid">
+        <div class="navbar-nav me-auto">
+          <router-link to="/admin/dashboard" class="nav-link">
+            <i class="bi bi-house me-2"></i>Home
+          </router-link>
+          <router-link to="/admin/quiz" class="nav-link active">
+            <i class="bi bi-puzzle me-2"></i>Quiz
+          </router-link>
+          <router-link to="/admin/summary" class="nav-link">
+            <i class="bi bi-graph-up me-2"></i>Summary
+          </router-link>
+        </div>
+        <div class="d-flex align-items-center">
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            placeholder="Search..." 
+            class="form-control search-input me-3"
+          />
+          <span class="navbar-text me-3">Welcome Admin</span>
+          <button @click="logout" class="btn btn-outline-light">
+            <i class="bi bi-box-arrow-right me-2"></i>Logout
+          </button>
+        </div>
       </div>
-      <div class="welcome">Welcome Admin</div>
-    </header>
+    </nav>
 
-    <main class="main-content">
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
       <!-- Page Header -->
       <div class="page-header mb-4">
         <div class="header-content">
@@ -139,7 +150,7 @@
           </button>
         </div>
       </div>
-    </main>
+    </div>
 
     <!-- Quiz Modal -->
     <div v-if="showNewQuizModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
@@ -382,7 +393,7 @@ export default {
         loading.value = true
         error.value = ''
         
-        const response = await fetch('/api/admin/quizzes')
+        const response = await fetch('/api/quizzes')
         if (response.ok) {
           const data = await response.json()
           quizzes.value = data
@@ -746,73 +757,62 @@ export default {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Header */
-.header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 1rem 2rem;
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.nav {
-  display: flex;
-  gap: 1.5rem;
-}
-
-.nav-link {
-  color: white;
-  text-decoration: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.nav-link:hover,
-.nav-link.active {
-  background: rgba(255, 255, 255, 0.2);
+/* Navigation */
+.navbar {
+  background: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-.search-container {
-  max-width: 300px;
-  margin: 0 2rem;
+.navbar-nav .nav-link {
+  color: #2d3748 !important;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  margin: 0 0.25rem;
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
 .search-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: none;
-  border-radius: 12px;
   background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  font-size: 0.95rem;
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 25px;
+  padding: 0.5rem 1rem;
+  width: 250px;
   transition: all 0.3s ease;
 }
 
 .search-input:focus {
   outline: none;
+  border-color: #667eea;
   background: white;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.2);
 }
 
-.welcome {
+.navbar-text {
+  color: #2d3748 !important;
   font-weight: 600;
-  color: white;
-  font-size: 1.1rem;
 }
 
-/* Main Content */
-.main-content {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+.btn-outline-light {
+  border-color: rgba(102, 126, 234, 0.3);
+  color: #667eea;
+  font-weight: 600;
+}
+
+.btn-outline-light:hover {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-color: #667eea;
+  color: white;
 }
 
 /* Page Header */
@@ -1217,26 +1217,6 @@ export default {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-  }
-  
-  .nav {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  
-  .search-container {
-    margin: 0;
-    max-width: 100%;
-  }
-  
-  .main-content {
-    padding: 1rem;
-  }
-  
   .header-content {
     flex-direction: column;
     gap: 1rem;
