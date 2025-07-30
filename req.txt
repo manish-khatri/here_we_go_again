@@ -28,3 +28,4 @@ Werkzeug==3.0.1
 WTForms==3.2.1
 celery
 redis
+flask-cors
