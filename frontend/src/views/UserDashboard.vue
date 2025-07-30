@@ -16,13 +16,21 @@
           class="search-input"
         />
       </div>
-      <div class="welcome">Welcome User</div>
+      <div class="welcome">Welcome {{ authStore.currentUser?.name || 'User' }}</div>
     </header>
 
     <main class="main-content">
       <h1>Upcoming Quizzes</h1>
       
-      <div class="quizzes-table-container">
+      <div v-if="quizStore.loading" class="loading">
+        Loading quizzes...
+      </div>
+      
+      <div v-else-if="quizStore.error" class="error">
+        Error: {{ quizStore.error }}
+      </div>
+      
+      <div v-else class="quizzes-table-container">
         <table class="quizzes-table">
           <thead>
             <tr>
@@ -34,35 +42,18 @@
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>1</td>
-              <td>05</td>
-              <td>xx/xx/yyyy</td>
-              <td>00:10</td>
+            <tr v-for="quiz in filteredQuizzes" :key="quiz.q_id">
+              <td>{{ quiz.q_id }}</td>
+              <td>{{ quiz.questionCount || 'N/A' }}</td>
+              <td>{{ formatDate(quiz.date_of_quiz) }}</td>
+              <td>{{ quiz.time_dur || 'N/A' }}</td>
               <td>
-                <button @click="viewQuiz(1)" class="btn-view">View</button>
-                <button @click="startQuiz(1)" class="btn-start">Start</button>
+                <button @click="viewQuiz(quiz)" class="btn-view">View</button>
+                <button @click="startQuiz(quiz.q_id)" class="btn-start">Start</button>
               </td>
             </tr>
-            <tr>
-              <td>2</td>
-              <td>10</td>
-              <td>xx/xx/yyyy</td>
-              <td>00:10</td>
-              <td>
-                <button @click="viewQuiz(2)" class="btn-view">View</button>
-                <button @click="startQuiz(2)" class="btn-start">Start</button>
-              </td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td>15</td>
-              <td>xx/xx/yyyy</td>
-              <td>00:30</td>
-              <td>
-                <button @click="viewQuiz(3)" class="btn-view">View</button>
-                <button @click="startQuiz(3)" class="btn-start">Start</button>
-              </td>
+            <tr v-if="filteredQuizzes.length === 0">
+              <td colspan="5" class="no-data">No quizzes available</td>
             </tr>
           </tbody>
         </table>
@@ -76,27 +67,27 @@
         <div class="quiz-details">
           <div class="detail-item">
             <span class="detail-label">ID:</span>
-            <span class="detail-value">{{ selectedQuiz.id }}</span>
+            <span class="detail-value">{{ selectedQuiz.q_id }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Subject:</span>
-            <span class="detail-value">{{ selectedQuiz.subject }}</span>
+            <span class="detail-value">{{ selectedQuiz.subject || 'N/A' }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Chapter:</span>
-            <span class="detail-value">{{ selectedQuiz.chapter }}</span>
+            <span class="detail-value">{{ selectedQuiz.chapter || 'N/A' }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Number of Questions:</span>
-            <span class="detail-value">{{ selectedQuiz.questions }}</span>
+            <span class="detail-value">{{ selectedQuiz.questionCount || 'N/A' }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Scheduled Date:</span>
-            <span class="detail-value">{{ selectedQuiz.date }}</span>
+            <span class="detail-value">{{ formatDate(selectedQuiz.date_of_quiz) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Duration (hh:mm):</span>
-            <span class="detail-value">{{ selectedQuiz.duration }}</span>
+            <span class="detail-value">{{ selectedQuiz.time_dur || 'N/A' }}</span>
           </div>
         </div>
         <div class="modal-actions">
@@ -108,49 +99,67 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useQuizStore } from '../stores/quiz'
 
 export default {
   name: 'UserDashboard',
   setup() {
     const router = useRouter()
     const authStore = useAuthStore()
+    const quizStore = useQuizStore()
     const searchQuery = ref('')
     const showViewQuizModal = ref(false)
     const selectedQuiz = ref({})
+
+    const filteredQuizzes = computed(() => {
+      if (!searchQuery.value) return quizStore.upcomingQuizzes
+      return quizStore.upcomingQuizzes.filter(quiz => 
+        quiz.q_id.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        (quiz.subject && quiz.subject.toLowerCase().includes(searchQuery.value.toLowerCase()))
+      )
+    })
 
     const logout = () => {
       authStore.logout()
       router.push('/login')
     }
 
-    const viewQuiz = (quizId) => {
-      // TODO: Fetch quiz details from API
-      selectedQuiz.value = {
-        id: quizId,
-        subject: 'Mathematics',
-        chapter: 'Random Variables',
-        questions: '05',
-        date: 'dd/mm/yyyy',
-        duration: '00:10'
-      }
+    const viewQuiz = (quiz) => {
+      selectedQuiz.value = quiz
       showViewQuizModal.value = true
     }
 
     const startQuiz = (quizId) => {
-      // TODO: Navigate to quiz taking interface
       router.push(`/user/quiz/${quizId}`)
     }
+
+    const formatDate = (dateString) => {
+      if (!dateString) return 'N/A'
+      try {
+        return new Date(dateString).toLocaleDateString()
+      } catch {
+        return dateString
+      }
+    }
+
+    onMounted(async () => {
+      await quizStore.fetchUpcomingQuizzes()
+    })
 
     return {
       searchQuery,
       showViewQuizModal,
       selectedQuiz,
+      authStore,
+      quizStore,
+      filteredQuizzes,
       logout,
       viewQuiz,
-      startQuiz
+      startQuiz,
+      formatDate
     }
   }
 }
@@ -358,6 +367,26 @@ export default {
 
 .btn-secondary:hover {
   background-color: #5a6268;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+}
+
+.loading {
+  color: #667eea;
+}
+
+.error {
+  color: #dc3545;
+}
+
+.no-data {
+  text-align: center;
+  color: #666;
+  font-style: italic;
 }
 
 /* Responsive Design */

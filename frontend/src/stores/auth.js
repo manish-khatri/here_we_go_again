@@ -5,7 +5,7 @@ export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref(null)
   const isAuthenticated = ref(false)
-  const userRole = ref(null) // 'admin' or 'user'
+  const userRole = ref(null) // 'admin' or 'customer'
 
   // Getters
   const isAdmin = computed(() => userRole.value === 'admin')
@@ -15,10 +15,13 @@ export const useAuthStore = defineStore('auth', () => {
   // Actions
   const login = async (email, password) => {
     try {
-      const response = await fetch('/login', {
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ 
+          user_mail: email, 
+          user_pass: password 
+        })
       })
       
       const data = await response.json()
@@ -26,20 +29,18 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.ok) {
         // Success - user authenticated
         const userData = {
-          id: data.id,
-          email: data.email,
-          role: data.role,
-          token: data.token
+          email: email,
+          role: data.role[0] || 'customer', // Backend returns array of roles
+          message: data.message
         }
 
         user.value = userData
-        userRole.value = data.role
+        userRole.value = data.role[0] || 'customer'
         isAuthenticated.value = true
 
         // Store in localStorage
         localStorage.setItem('user', JSON.stringify(userData))
         localStorage.setItem('isAuthenticated', 'true')
-        localStorage.setItem('authToken', data.token)
 
         return { success: true, user: userData }
       } else {
@@ -52,16 +53,57 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const adminLogin = async (email, password) => {
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          user_mail: email, 
+          user_pass: password 
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        // Success - admin authenticated
+        const userData = {
+          email: email,
+          role: 'admin',
+          message: data.message
+        }
+
+        user.value = userData
+        userRole.value = 'admin'
+        isAuthenticated.value = true
+
+        // Store in localStorage
+        localStorage.setItem('user', JSON.stringify(userData))
+        localStorage.setItem('isAuthenticated', 'true')
+
+        return { success: true, user: userData }
+      } else {
+        // Error response
+        return { success: false, error: data.error || data.message || 'Admin login failed' }
+      }
+    } catch (error) {
+      console.error('Admin login error:', error)
+      return { success: false, error: 'Network error. Please try again.' }
+    }
+  }
+
   const register = async (userData) => {
     try {
-      const response = await fetch('/register', {
+      const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: userData.email,
-          name: userData.fullName,
-          password: userData.password,
-          role: 'customer' // New users are always customers
+          user_mail: userData.email,
+          user_name: userData.fullName,
+          user_pass: userData.password,
+          qualification: userData.qualification,
+          dob: userData.dateOfBirth
         })
       })
       
@@ -94,15 +136,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const logout = () => {
-    user.value = null
-    userRole.value = null
-    isAuthenticated.value = false
+  const logout = async () => {
+    try {
+      // Call logout endpoint
+      await fetch('/api/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      // Clear local state regardless of API call success
+      user.value = null
+      userRole.value = null
+      isAuthenticated.value = false
 
-    // Clear localStorage
-    localStorage.removeItem('user')
-    localStorage.removeItem('isAuthenticated')
-    localStorage.removeItem('authToken')
+      // Clear localStorage
+      localStorage.removeItem('user')
+      localStorage.removeItem('isAuthenticated')
+      localStorage.removeItem('authToken')
+    }
   }
 
   const checkAuth = () => {
@@ -119,21 +172,22 @@ export const useAuthStore = defineStore('auth', () => {
     return false
   }
 
-      return {
-      // State
-      user,
-      isAuthenticated,
-      userRole,
-      
-      // Getters
-      isAdmin,
-      isCustomer,
-      currentUser,
-      
-      // Actions
-      login,
-      register,
-      logout,
-      checkAuth
-    }
+  return {
+    // State
+    user,
+    isAuthenticated,
+    userRole,
+    
+    // Getters
+    isAdmin,
+    isCustomer,
+    currentUser,
+    
+    // Actions
+    login,
+    adminLogin,
+    register,
+    logout,
+    checkAuth
+  }
 }) 

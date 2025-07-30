@@ -22,11 +22,17 @@
     <main class="main-content">
       <h1>Subject Management</h1>
       
-      <!-- Subject Tables -->
-      <div class="subjects-container">
-        <!-- Physics Subject -->
-        <div class="subject-card">
-          <h3>{{ subjects[0]?.sub_name || 'Physics' }}</h3>
+      <div v-if="quizStore.loading" class="loading">
+        Loading subjects...
+      </div>
+      
+      <div v-else-if="quizStore.error" class="error">
+        Error: {{ quizStore.error }}
+      </div>
+      
+      <div v-else class="subjects-container">
+        <div v-for="subject in filteredSubjects" :key="subject.sub_id" class="subject-card">
+          <h3>{{ subject.sub_name }}</h3>
           <table class="subject-table">
             <thead>
               <tr>
@@ -36,42 +42,24 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="chapter in subjects[0]?.chapters" :key="chapter.chp_id">
+              <tr v-for="chapter in subject.chapters" :key="chapter.chp_id">
                 <td>{{ chapter.chp_name }}</td>
-                <td>{{ chapter.questionCount }}</td>
+                <td>{{ chapter.questionCount || 0 }}</td>
                 <td>
-                  <button class="btn-edit">Edit</button>
-                  <button class="btn-delete">Delete</button>
+                  <button @click="editChapter(chapter)" class="btn-edit">Edit</button>
+                  <button @click="deleteChapter(chapter.chp_id)" class="btn-delete">Delete</button>
                 </td>
+              </tr>
+              <tr v-if="subject.chapters.length === 0">
+                <td colspan="3" class="no-data">No chapters available</td>
               </tr>
             </tbody>
           </table>
-          <button @click="showNewChapterModal = true" class="btn-add-chapter">+ Chapter</button>
+          <button @click="showNewChapterModal = true; selectedSubjectId = subject.sub_id" class="btn-add-chapter">+ Chapter</button>
         </div>
-
-        <!-- App Dev-I Subject -->
-        <div class="subject-card">
-          <h3>{{ subjects[1]?.sub_name || 'App Dev-I' }}</h3>
-          <table class="subject-table">
-            <thead>
-              <tr>
-                <th>Chapter</th>
-                <th>No. of Questions</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="chapter in subjects[1]?.chapters" :key="chapter.chp_id">
-                <td>{{ chapter.chp_name }}</td>
-                <td>{{ chapter.questionCount }}</td>
-                <td>
-                  <button class="btn-edit">Edit</button>
-                  <button class="btn-delete">Delete</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <button @click="showNewChapterModal = true" class="btn-add-chapter">+ Chapter</button>
+        
+        <div v-if="filteredSubjects.length === 0" class="no-subjects">
+          <p>No subjects available. Create your first subject!</p>
         </div>
       </div>
 
@@ -86,6 +74,10 @@
       <div class="modal-content" @click.stop>
         <h3>New Subject</h3>
         <form @submit.prevent="addNewSubject" class="modal-form">
+          <div class="form-group">
+            <label for="subject-id">Subject ID</label>
+            <input type="text" id="subject-id" v-model="newSubject.sub_id" required />
+          </div>
           <div class="form-group">
             <label for="subject-name">Name</label>
             <input type="text" id="subject-name" v-model="newSubject.name" required />
@@ -109,6 +101,10 @@
         <h3>New Chapter</h3>
         <form @submit.prevent="addNewChapter" class="modal-form">
           <div class="form-group">
+            <label for="chapter-id">Chapter ID</label>
+            <input type="text" id="chapter-id" v-model="newChapter.chp_id" required />
+          </div>
+          <div class="form-group">
             <label for="chapter-name">Name</label>
             <input type="text" id="chapter-name" v-model="newChapter.name" required />
           </div>
@@ -128,7 +124,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useQuizStore } from '../stores/quiz'
@@ -142,15 +138,26 @@ export default {
     const searchQuery = ref('')
     const showNewSubjectModal = ref(false)
     const showNewChapterModal = ref(false)
+    const selectedSubjectId = ref(null)
     
     const newSubject = ref({
+      sub_id: '',
       name: '',
       description: ''
     })
     
     const newChapter = ref({
+      chp_id: '',
       name: '',
       description: ''
+    })
+
+    const filteredSubjects = computed(() => {
+      if (!searchQuery.value) return quizStore.subjects
+      return quizStore.subjects.filter(subject => 
+        subject.sub_name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        subject.sub_id.toLowerCase().includes(searchQuery.value.toLowerCase())
+      )
     })
 
     const logout = () => {
@@ -158,38 +165,63 @@ export default {
       router.push('/login')
     }
 
-    const addNewSubject = () => {
-      // TODO: Implement add subject logic
-      console.log('Adding new subject:', newSubject.value)
-      showNewSubjectModal.value = false
-      newSubject.value = { name: '', description: '' }
-    }
-
-    const addNewChapter = async () => {
-      // TODO: Implement add chapter logic
-      console.log('Adding new chapter:', newChapter.value)
-      const result = await quizStore.addChapter('1', newChapter.value)
+    const addNewSubject = async () => {
+      const result = await quizStore.addSubject(newSubject.value)
       if (result.success) {
-        showNewChapterModal.value = false
-        newChapter.value = { name: '', description: '' }
+        showNewSubjectModal.value = false
+        newSubject.value = { sub_id: '', name: '', description: '' }
+      } else {
+        alert('Failed to add subject: ' + result.error)
       }
     }
 
-    onMounted(() => {
-      // Load subjects data
-      quizStore.fetchSubjects()
+    const addNewChapter = async () => {
+      if (!selectedSubjectId.value) {
+        alert('No subject selected')
+        return
+      }
+      
+      const result = await quizStore.addChapter(selectedSubjectId.value, newChapter.value)
+      if (result.success) {
+        showNewChapterModal.value = false
+        newChapter.value = { chp_id: '', name: '', description: '' }
+        selectedSubjectId.value = null
+      } else {
+        alert('Failed to add chapter: ' + result.error)
+      }
+    }
+
+    const editChapter = (chapter) => {
+      // TODO: Implement edit chapter functionality
+      console.log('Edit chapter:', chapter)
+    }
+
+    const deleteChapter = async (chapterId) => {
+      if (confirm('Are you sure you want to delete this chapter?')) {
+        // TODO: Implement delete chapter functionality
+        console.log('Delete chapter:', chapterId)
+      }
+    }
+
+    onMounted(async () => {
+      await quizStore.fetchSubjects()
     })
 
     return {
       searchQuery,
       showNewSubjectModal,
       showNewChapterModal,
+      selectedSubjectId,
       newSubject,
       newChapter,
-      subjects: quizStore.subjects,
+      authStore,
+      quizStore,
+      filteredSubjects,
       logout,
       addNewSubject,
-      addNewChapter
+      addNewChapter,
+      editChapter,
+      deleteChapter
     }
   }
 }
@@ -427,5 +459,32 @@ export default {
   background-color: #f8f9fa;
   color: #333;
   border: 1px solid #ddd;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+}
+
+.loading {
+  color: #667eea;
+}
+
+.error {
+  color: #dc3545;
+}
+
+.no-data {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.no-subjects {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
 }
 </style> 

@@ -7,11 +7,11 @@ db=SQLAlchemy()
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
 
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String, unique=True, nullable=False)
+    user_id = db.Column(db.String, primary_key=True)
+    user_mail = db.Column(db.String, unique=True, nullable=False)
     user_name = db.Column(db.String, nullable=False)
     # user_type = db.Column(db.String, nullable=False, default="customer")
-    password = db.Column(db.String, nullable=False)
+    user_pass = db.Column(db.String, nullable=False)
     qualification = db.Column(db.String)
     dob = db.Column(db.Date)
 
@@ -28,7 +28,7 @@ class Role(db.Model, RoleMixin):
 class UserRoles(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
-    user_id=db.Column(db.String, db.ForeignKey('users.id'))
+    user_id=db.Column(db.String, db.ForeignKey('users.user_id'))
     role_id=db.Column(db.String, db.ForeignKey('role.id'))
 
 
@@ -64,6 +64,7 @@ class Quiz(db.Model):
     sub_id = db.Column(db.String, db.ForeignKey('subject.sub_id'), nullable=False)
     date_of_quiz = db.Column(db.Date)
     time_dur = db.Column(db.Time)
+    remarks = db.Column(db.String)  # Added remarks field
 
     scores = db.relationship('Score', backref='quiz', cascade='all, delete-orphan')
 
@@ -85,6 +86,6 @@ class Score(db.Model):
 
     score_id = db.Column(db.String, primary_key=True, nullable=False)
     q_id = db.Column(db.String, db.ForeignKey('quiz.q_id'), nullable=False)
-    user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False) #user_id
+    user_id = db.Column(db.String, db.ForeignKey('users.user_id'), nullable=False)
     time_stamp = db.Column(db.DateTime)
     total_score = db.Column(db.Float)

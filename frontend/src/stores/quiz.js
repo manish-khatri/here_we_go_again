@@ -3,112 +3,12 @@ import { ref, computed } from 'vue'
 
 export const useQuizStore = defineStore('quiz', () => {
   // State
-  const subjects = ref([
-    {
-      sub_id: '1',
-      sub_name: 'Physics',
-      sub_desc: 'Study of matter and energy',
-      chapters: [
-        { chp_id: '1', chp_name: 'Force', questionCount: 15 },
-        { chp_id: '2', chp_name: 'EMF', questionCount: 12 }
-      ]
-    },
-    {
-      sub_id: '2',
-      sub_name: 'App Dev-I',
-      sub_desc: 'Application Development Fundamentals',
-      chapters: [
-        { chp_id: '3', chp_name: 'HTML', questionCount: 20 },
-        { chp_id: '4', chp_name: 'CSS', questionCount: 18 }
-      ]
-    }
-  ])
-
-  const quizzes = ref([
-    {
-      q_id: '1',
-      q_name: 'Quiz1 (CSS)',
-      chp_id: '4',
-      sub_id: '2',
-      date_of_quiz: '2024-01-15',
-      time_dur: '00:10',
-      questions: [
-        { ques_id: '1', statement: 'What is the purpose of CSS classes?' },
-        { ques_id: '2', statement: 'How do you apply internal CSS styles?' }
-      ]
-    },
-    {
-      q_id: '2',
-      q_name: 'Quiz2 (HTML)',
-      chp_id: '3',
-      sub_id: '2',
-      date_of_quiz: '2024-01-20',
-      time_dur: '00:15',
-      questions: [
-        { ques_id: '3', statement: 'What does the <b> element do?' },
-        { ques_id: '4', statement: 'How many heading levels are available in HTML?' },
-        { ques_id: '5', statement: 'What is the purpose of the <form> element?' }
-      ]
-    }
-  ])
-
-  const upcomingQuizzes = ref([
-    {
-      q_id: '1',
-      questionCount: 5,
-      date_of_quiz: '2024-01-15',
-      time_dur: '00:10',
-      subject: 'Mathematics',
-      chapter: 'Random Variables'
-    },
-    {
-      q_id: '2',
-      questionCount: 10,
-      date_of_quiz: '2024-01-20',
-      time_dur: '00:10',
-      subject: 'Physics',
-      chapter: 'Force'
-    },
-    {
-      q_id: '3',
-      questionCount: 15,
-      date_of_quiz: '2024-01-25',
-      time_dur: '00:30',
-      subject: 'Chemistry',
-      chapter: 'Organic Chemistry'
-    }
-  ])
-
-  const userScores = ref([
-    {
-      score_id: '1',
-      q_id: '1',
-      user_id: 'C0',
-      time_stamp: '2024-01-10T10:30:00',
-      total_score: 3
-    },
-    {
-      score_id: '2',
-      q_id: '2',
-      user_id: 'C0',
-      time_stamp: '2024-01-05T14:20:00',
-      total_score: 12
-    },
-    {
-      score_id: '3',
-      q_id: '3',
-      user_id: 'C0',
-      time_stamp: '2023-12-28T09:15:00',
-      total_score: 8
-    },
-    {
-      score_id: '4',
-      q_id: '4',
-      user_id: 'C0',
-      time_stamp: '2023-12-20T16:45:00',
-      total_score: 16
-    }
-  ])
+  const subjects = ref([])
+  const quizzes = ref([])
+  const upcomingQuizzes = ref([])
+  const userScores = ref([])
+  const loading = ref(false)
+  const error = ref(null)
 
   // Getters
   const getSubjectById = computed(() => (id) => {
@@ -134,157 +34,301 @@ export const useQuizStore = defineStore('quiz', () => {
   // Actions
   const addSubject = async (subjectData) => {
     try {
-      // TODO: Replace with actual API call
-      const newSubject = {
-        sub_id: Date.now().toString(),
-        sub_name: subjectData.name,
-        sub_desc: subjectData.description,
-        chapters: []
-      }
+      loading.value = true
+      error.value = null
       
-      subjects.value.push(newSubject)
-      return { success: true, subject: newSubject }
+      const response = await fetch('/api/subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sub_id: subjectData.sub_id || Date.now().toString(),
+          sub_name: subjectData.name,
+          sub_desc: subjectData.description
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        await fetchSubjects() // Refresh subjects list
+        return { success: true, subject: data }
+      } else {
+        throw new Error(data.error || 'Failed to add subject')
+      }
     } catch (error) {
       console.error('Add subject error:', error)
+      error.value = error.message
       return { success: false, error: error.message }
+    } finally {
+      loading.value = false
     }
   }
 
   const addChapter = async (subjectId, chapterData) => {
     try {
-      // TODO: Replace with actual API call
-      const subject = subjects.value.find(s => s.sub_id === subjectId)
-      if (!subject) {
-        throw new Error('Subject not found')
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch(`/api/subjects/${subjectId}/chapters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chp_id: chapterData.chp_id || Date.now().toString(),
+          chp_name: chapterData.name,
+          chp_desc: chapterData.description
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        await fetchSubjects() // Refresh subjects list
+        return { success: true, chapter: data }
+      } else {
+        throw new Error(data.error || 'Failed to add chapter')
       }
-
-      const newChapter = {
-        chp_id: Date.now().toString(),
-        chp_name: chapterData.name,
-        chp_desc: chapterData.description,
-        questionCount: 0
-      }
-
-      subject.chapters.push(newChapter)
-      return { success: true, chapter: newChapter }
     } catch (error) {
       console.error('Add chapter error:', error)
+      error.value = error.message
       return { success: false, error: error.message }
+    } finally {
+      loading.value = false
     }
   }
 
   const addQuiz = async (quizData) => {
     try {
-      // TODO: Replace with actual API call
-      const newQuiz = {
-        q_id: Date.now().toString(),
-        q_name: `Quiz${quizzes.value.length + 1}`,
-        chp_id: quizData.chapterId,
-        sub_id: quizData.subjectId,
-        date_of_quiz: quizData.date,
-        time_dur: quizData.duration,
-        questions: []
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch(`/api/chapters/${quizData.chapterId}/quizzes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          q_id: quizData.q_id || Date.now().toString(),
+          q_name: quizData.name,
+          sub_id: quizData.subjectId,
+          date_of_quiz: quizData.date,
+          time_dur: quizData.duration,
+          remarks: quizData.remarks
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        await fetchQuizzes() // Refresh quizzes list
+        return { success: true, quiz: data }
+      } else {
+        throw new Error(data.error || 'Failed to add quiz')
       }
-
-      quizzes.value.push(newQuiz)
-      return { success: true, quiz: newQuiz }
     } catch (error) {
       console.error('Add quiz error:', error)
+      error.value = error.message
       return { success: false, error: error.message }
+    } finally {
+      loading.value = false
     }
   }
 
   const addQuestion = async (quizId, questionData) => {
     try {
-      // TODO: Replace with actual API call
-      const quiz = quizzes.value.find(q => q.q_id === quizId)
-      if (!quiz) {
-        throw new Error('Quiz not found')
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch(`/api/quizzes/${quizId}/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ques_id: questionData.ques_id || Date.now().toString(),
+          sub_id: questionData.subjectId,
+          chp_id: questionData.chapterId,
+          statement: questionData.statement,
+          options: questionData.options,
+          answer: questionData.correctOption.toString()
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        return { success: true, question: data }
+      } else {
+        throw new Error(data.error || 'Failed to add question')
       }
-
-      const newQuestion = {
-        ques_id: Date.now().toString(),
-        statement: questionData.statement,
-        options: questionData.options,
-        answer: questionData.correctOption.toString()
-      }
-
-      quiz.questions.push(newQuestion)
-      return { success: true, question: newQuestion }
     } catch (error) {
       console.error('Add question error:', error)
+      error.value = error.message
       return { success: false, error: error.message }
+    } finally {
+      loading.value = false
     }
   }
 
-  const submitQuizScore = async (quizId, score) => {
+  const submitQuizScore = async (quizId, answers) => {
     try {
-      // TODO: Replace with actual API call
-      const newScore = {
-        score_id: Date.now().toString(),
-        q_id: quizId,
-        user_id: score.userId,
-        time_stamp: new Date().toISOString(),
-        total_score: score.correctAnswers
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch(`/api/quizzes/${quizId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        await fetchUserScores() // Refresh scores
+        return { success: true, score: data }
+      } else {
+        throw new Error(data.error || 'Failed to submit quiz')
       }
-
-      userScores.value.push(newScore)
-      return { success: true, score: newScore }
     } catch (error) {
       console.error('Submit score error:', error)
+      error.value = error.message
       return { success: false, error: error.message }
+    } finally {
+      loading.value = false
     }
   }
 
   const fetchSubjects = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/subjects')
-      // const data = await response.json()
-      // subjects.value = data
-      return { success: true }
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch('/api/subjects')
+      const data = await response.json()
+      
+      if (response.ok) {
+        subjects.value = data
+        return { success: true }
+      } else {
+        throw new Error(data.error || 'Failed to fetch subjects')
+      }
     } catch (error) {
       console.error('Fetch subjects error:', error)
+      error.value = error.message
       return { success: false, error: error.message }
+    } finally {
+      loading.value = false
     }
   }
 
   const fetchQuizzes = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/quizzes')
-      // const data = await response.json()
-      // quizzes.value = data
-      return { success: true }
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch('/api/admin/quizzes')
+      const data = await response.json()
+      
+      if (response.ok) {
+        quizzes.value = data
+        return { success: true }
+      } else {
+        throw new Error(data.error || 'Failed to fetch quizzes')
+      }
     } catch (error) {
       console.error('Fetch quizzes error:', error)
+      error.value = error.message
       return { success: false, error: error.message }
+    } finally {
+      loading.value = false
     }
   }
 
   const fetchUpcomingQuizzes = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/upcoming-quizzes')
-      // const data = await response.json()
-      // upcomingQuizzes.value = data
-      return { success: true }
+      loading.value = true
+      error.value = null
+      
+      // For now, we'll use the admin quizzes endpoint
+      // In a real app, you might have a separate endpoint for upcoming quizzes
+      const response = await fetch('/api/admin/quizzes')
+      const data = await response.json()
+      
+      if (response.ok) {
+        // Get subjects to map quiz to subject name
+        const subjectsResponse = await fetch('/api/subjects')
+        const subjectsData = await subjectsResponse.json()
+        const subjectsMap = {}
+        subjectsData.forEach(subject => {
+          subject.chapters.forEach(chapter => {
+            subjectsMap[chapter.chp_id] = {
+              subject: subject.sub_name,
+              chapter: chapter.chp_name
+            }
+          })
+        })
+        
+        upcomingQuizzes.value = data.map(quiz => {
+          const subjectInfo = subjectsMap[quiz.chp_id] || { subject: 'Unknown', chapter: 'Unknown' }
+          return {
+            q_id: quiz.q_id,
+            questionCount: 3, // This would come from questions count
+            date_of_quiz: quiz.date_of_quiz,
+            time_dur: quiz.time_dur,
+            subject: subjectInfo.subject,
+            chapter: subjectInfo.chapter
+          }
+        })
+        return { success: true }
+      } else {
+        throw new Error(data.error || 'Failed to fetch upcoming quizzes')
+      }
     } catch (error) {
       console.error('Fetch upcoming quizzes error:', error)
+      error.value = error.message
       return { success: false, error: error.message }
+    } finally {
+      loading.value = false
     }
   }
 
   const fetchUserScores = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/user-scores')
-      // const data = await response.json()
-      // userScores.value = data
-      return { success: true }
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch('/api/scores')
+      const data = await response.json()
+      
+      if (response.ok) {
+        userScores.value = data
+        return { success: true }
+      } else {
+        throw new Error(data.error || 'Failed to fetch user scores')
+      }
     } catch (error) {
       console.error('Fetch user scores error:', error)
+      error.value = error.message
       return { success: false, error: error.message }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const startQuiz = async (quizId) => {
+    try {
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch(`/api/quizzes/${quizId}/start`)
+      const data = await response.json()
+      
+      if (response.ok) {
+        return { success: true, quiz: data }
+      } else {
+        throw new Error(data.error || 'Failed to start quiz')
+      }
+    } catch (error) {
+      console.error('Start quiz error:', error)
+      error.value = error.message
+      return { success: false, error: error.message }
+    } finally {
+      loading.value = false
     }
   }
 
@@ -294,6 +338,8 @@ export const useQuizStore = defineStore('quiz', () => {
     quizzes,
     upcomingQuizzes,
     userScores,
+    loading,
+    error,
     
     // Getters
     getSubjectById,
@@ -310,6 +356,7 @@ export const useQuizStore = defineStore('quiz', () => {
     fetchSubjects,
     fetchQuizzes,
     fetchUpcomingQuizzes,
-    fetchUserScores
+    fetchUserScores,
+    startQuiz
   }
 }) 

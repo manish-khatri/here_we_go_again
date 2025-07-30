@@ -1,57 +1,112 @@
 <template>
   <div class="quiz-taking">
-    <div class="quiz-header">
-      <div class="question-info">
-        <span class="question-number">QNo. {{ currentQuestion }}/{{ totalQuestions }}</span>
+    <!-- Header -->
+    <header class="header">
+      <div class="quiz-info">
+        <h2>{{ quiz?.q_name || 'Quiz' }}</h2>
+        <div class="quiz-meta">
+          <span class="question-counter">QNo. {{ currentQuestionIndex + 1 }}/{{ questions.length }}</span>
+          <span class="timer">{{ formatTime(timeRemaining) }}</span>
+        </div>
       </div>
-      <div class="timer">
-        <span class="timer-text">{{ formatTime(timeRemaining) }}</span>
-      </div>
-    </div>
+      <button @click="confirmExit" class="exit-btn">Exit Quiz</button>
+    </header>
 
-    <div class="quiz-content">
-      <div class="question-container">
-        <div class="question-statement">
-          <p>{{ currentQuestionData.statement }}</p>
+    <main class="main-content">
+      <div v-if="loading" class="loading">
+        Loading quiz...
+      </div>
+      
+      <div v-else-if="error" class="error">
+        Error: {{ error }}
+      </div>
+      
+      <div v-else-if="quiz && questions.length > 0" class="quiz-content">
+        <!-- Question -->
+        <div class="question-section">
+          <h3>Question {{ currentQuestionIndex + 1 }}</h3>
+          <div class="question-statement">
+            {{ currentQuestion.statement }}
+          </div>
         </div>
 
-        <div class="options-container">
-          <div 
-            v-for="(option, index) in currentQuestionData.options" 
-            :key="index"
-            class="option-item"
-            :class="{ selected: selectedOption === index + 1 }"
-            @click="selectOption(index + 1)"
-          >
-            <input 
-              type="radio" 
-              :id="`option-${index + 1}`" 
-              :name="`question-${currentQuestion}`" 
-              :value="index + 1"
-              :checked="selectedOption === index + 1"
-              @change="selectOption(index + 1)"
-            />
-            <label :for="`option-${index + 1}`">
-              {{ index + 1 }}) {{ option }}
+        <!-- Options -->
+        <div class="options-section">
+          <h4>Select your answer:</h4>
+          <div class="options">
+            <label 
+              v-for="(option, index) in currentQuestion.options" 
+              :key="index"
+              class="option-item"
+            >
+              <input 
+                type="radio" 
+                :name="'question-' + currentQuestion.ques_id"
+                :value="(index + 1).toString()"
+                v-model="answers[currentQuestion.ques_id]"
+                class="option-radio"
+              />
+              <span class="option-text">{{ index + 1 }}) {{ option }}</span>
             </label>
           </div>
         </div>
-      </div>
 
-      <div class="quiz-actions">
-        <button @click="saveAndNext" class="btn btn-primary">Save and Next</button>
-        <button @click="submitQuiz" class="btn btn-secondary">Submit</button>
+        <!-- Navigation -->
+        <div class="navigation">
+          <button 
+            @click="previousQuestion" 
+            :disabled="currentQuestionIndex === 0"
+            class="btn btn-secondary"
+          >
+            Previous
+          </button>
+          
+          <div class="question-dots">
+            <span 
+              v-for="(question, index) in questions" 
+              :key="index"
+              :class="['dot', { 
+                'active': index === currentQuestionIndex,
+                'answered': answers[question.ques_id]
+              }]"
+              @click="goToQuestion(index)"
+            >
+              {{ index + 1 }}
+            </span>
+          </div>
+          
+          <button 
+            v-if="currentQuestionIndex < questions.length - 1"
+            @click="nextQuestion" 
+            class="btn btn-primary"
+          >
+            Save and Next
+          </button>
+          
+          <button 
+            v-else
+            @click="submitQuiz" 
+            class="btn btn-success"
+          >
+            Submit Quiz
+          </button>
+        </div>
       </div>
-    </div>
+      
+      <div v-else class="no-questions">
+        <p>No questions available for this quiz.</p>
+        <button @click="$router.go(-1)" class="btn btn-secondary">Go Back</button>
+      </div>
+    </main>
 
-    <!-- Confirmation Modal -->
-    <div v-if="showSubmitModal" class="modal-overlay" @click="showSubmitModal = false">
+    <!-- Exit Confirmation Modal -->
+    <div v-if="showExitModal" class="modal-overlay" @click="showExitModal = false">
       <div class="modal-content" @click.stop>
-        <h3>Submit Quiz</h3>
-        <p>Are you sure you want to submit the quiz? This action cannot be undone.</p>
+        <h3>Exit Quiz?</h3>
+        <p>Are you sure you want to exit? Your progress will be lost.</p>
         <div class="modal-actions">
-          <button @click="confirmSubmit" class="btn btn-primary">Yes, Submit</button>
-          <button @click="showSubmitModal = false" class="btn btn-secondary">Cancel</button>
+          <button @click="exitQuiz" class="btn btn-danger">Exit</button>
+          <button @click="showExitModal = false" class="btn btn-secondary">Cancel</button>
         </div>
       </div>
     </div>
@@ -59,105 +114,145 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useQuizStore } from '../stores/quiz'
 
 export default {
   name: 'QuizTaking',
   setup() {
-    const router = useRouter()
     const route = useRoute()
+    const router = useRouter()
+    const quizStore = useQuizStore()
     
-    const currentQuestion = ref(1)
-    const totalQuestions = ref(15)
-    const timeRemaining = ref(13 * 60 + 52) // 13 minutes 52 seconds in seconds
-    const selectedOption = ref(null)
-    const showSubmitModal = ref(false)
-    
-    // Mock question data - replace with API call
-    const currentQuestionData = ref({
-      statement: "What is the primary purpose of CSS classes in web development?",
-      options: [
-        "To create animations and transitions",
-        "To style and format HTML elements",
-        "To handle user interactions",
-        "To store data in the browser"
-      ]
+    const quizId = route.params.quizId
+    const quiz = ref(null)
+    const questions = ref([])
+    const currentQuestionIndex = ref(0)
+    const answers = ref({})
+    const loading = ref(true)
+    const error = ref(null)
+    const timeRemaining = ref(600) // 10 minutes in seconds
+    const showExitModal = ref(false)
+    const timer = ref(null)
+
+    const currentQuestion = computed(() => {
+      return questions.value[currentQuestionIndex.value] || {}
     })
 
-    let timerInterval = null
-
     const formatTime = (seconds) => {
-      const hours = Math.floor(seconds / 3600)
-      const minutes = Math.floor((seconds % 3600) / 60)
+      const mins = Math.floor(seconds / 60)
       const secs = seconds % 60
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-    }
-
-    const selectOption = (optionNumber) => {
-      selectedOption.value = optionNumber
-    }
-
-    const saveAndNext = () => {
-      // TODO: Save current answer
-      console.log('Saving answer:', selectedOption.value)
-      
-      if (currentQuestion.value < totalQuestions.value) {
-        currentQuestion.value++
-        selectedOption.value = null
-        // TODO: Load next question from API
-      } else {
-        // Last question, show submit option
-        showSubmitModal.value = true
-      }
-    }
-
-    const submitQuiz = () => {
-      showSubmitModal.value = true
-    }
-
-    const confirmSubmit = () => {
-      // TODO: Submit quiz to backend
-      console.log('Submitting quiz...')
-      showSubmitModal.value = false
-      router.push('/user/scores')
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
     }
 
     const startTimer = () => {
-      timerInterval = setInterval(() => {
+      timer.value = setInterval(() => {
         if (timeRemaining.value > 0) {
           timeRemaining.value--
         } else {
-          // Time's up, auto-submit
-          clearInterval(timerInterval)
-          confirmSubmit()
+          submitQuiz()
         }
       }, 1000)
     }
 
+    const stopTimer = () => {
+      if (timer.value) {
+        clearInterval(timer.value)
+        timer.value = null
+      }
+    }
+
+    const loadQuiz = async () => {
+      try {
+        loading.value = true
+        error.value = null
+        
+        const result = await quizStore.startQuiz(quizId)
+        if (result.success) {
+          quiz.value = result.quiz
+          questions.value = result.quiz.questions || []
+          startTimer()
+        } else {
+          error.value = result.error
+        }
+      } catch (err) {
+        error.value = 'Failed to load quiz'
+        console.error('Load quiz error:', err)
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const nextQuestion = () => {
+      if (currentQuestionIndex.value < questions.value.length - 1) {
+        currentQuestionIndex.value++
+      }
+    }
+
+    const previousQuestion = () => {
+      if (currentQuestionIndex.value > 0) {
+        currentQuestionIndex.value--
+      }
+    }
+
+    const goToQuestion = (index) => {
+      if (index >= 0 && index < questions.value.length) {
+        currentQuestionIndex.value = index
+      }
+    }
+
+    const submitQuiz = async () => {
+      if (confirm('Are you sure you want to submit the quiz?')) {
+        try {
+          const result = await quizStore.submitQuizScore(quizId, answers.value)
+          if (result.success) {
+            alert(`Quiz submitted! Your score: ${result.score.score}%`)
+            router.push('/user/dashboard')
+          } else {
+            alert('Failed to submit quiz: ' + result.error)
+          }
+        } catch (err) {
+          alert('Failed to submit quiz')
+          console.error('Submit quiz error:', err)
+        }
+      }
+    }
+
+    const confirmExit = () => {
+      showExitModal.value = true
+    }
+
+    const exitQuiz = () => {
+      stopTimer()
+      router.push('/user/dashboard')
+    }
+
     onMounted(() => {
-      startTimer()
-      // TODO: Load quiz data from API using route.params.quizId
+      loadQuiz()
     })
 
     onUnmounted(() => {
-      if (timerInterval) {
-        clearInterval(timerInterval)
-      }
+      stopTimer()
     })
 
     return {
+      quiz,
+      questions,
+      currentQuestionIndex,
       currentQuestion,
-      totalQuestions,
+      answers,
+      loading,
+      error,
       timeRemaining,
-      selectedOption,
-      currentQuestionData,
-      showSubmitModal,
+      showExitModal,
       formatTime,
-      selectOption,
-      saveAndNext,
+      nextQuestion,
+      previousQuestion,
+      goToQuestion,
       submitQuiz,
-      confirmSubmit
+      confirmExit,
+      exitQuiz
     }
   }
 }
@@ -167,64 +262,105 @@ export default {
 .quiz-taking {
   min-height: 100vh;
   background-color: #f5f5f5;
-  padding: 2rem;
 }
 
-.quiz-header {
+.header {
   background: white;
   padding: 1rem 2rem;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
 }
 
-.question-info {
-  font-size: 1.2rem;
-  font-weight: 600;
+.quiz-info h2 {
+  margin: 0;
   color: #333;
 }
 
-.timer {
-  background: #dc3545;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 5px;
-  font-weight: bold;
-  font-size: 1.1rem;
+.quiz-meta {
+  display: flex;
+  gap: 2rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
 }
 
-.quiz-content {
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+.question-counter {
+  font-weight: 600;
+}
+
+.timer {
+  font-weight: 600;
+  color: #dc3545;
+}
+
+.exit-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.main-content {
   padding: 2rem;
   max-width: 800px;
   margin: 0 auto;
 }
 
-.question-container {
+.loading, .error, .no-questions {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+}
+
+.loading {
+  color: #667eea;
+}
+
+.error {
+  color: #dc3545;
+}
+
+.quiz-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.question-section {
   margin-bottom: 2rem;
+}
+
+.question-section h3 {
+  color: #333;
+  margin-bottom: 1rem;
 }
 
 .question-statement {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #555;
+  padding: 1rem;
   background: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 10px;
-  margin-bottom: 2rem;
+  border-radius: 5px;
   border-left: 4px solid #667eea;
 }
 
-.question-statement p {
-  font-size: 1.1rem;
-  line-height: 1.6;
-  color: #333;
-  margin: 0;
+.options-section {
+  margin-bottom: 2rem;
 }
 
-.options-container {
+.options-section h4 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.options {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -235,69 +371,97 @@ export default {
   align-items: center;
   padding: 1rem;
   border: 2px solid #e9ecef;
-  border-radius: 8px;
+  border-radius: 5px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .option-item:hover {
   border-color: #667eea;
-  background-color: #f8f9fa;
+  background: #f8f9fa;
 }
 
-.option-item.selected {
-  border-color: #667eea;
-  background-color: #e3f2fd;
-}
-
-.option-item input[type="radio"] {
+.option-radio {
   margin-right: 1rem;
   transform: scale(1.2);
 }
 
-.option-item label {
-  flex: 1;
-  cursor: pointer;
+.option-text {
   font-size: 1rem;
   color: #333;
-  margin: 0;
 }
 
-.quiz-actions {
+.navigation {
   display: flex;
-  gap: 1rem;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
   padding-top: 2rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #e9ecef;
+}
+
+.question-dots {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dot {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9ecef;
+  color: #666;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.dot.active {
+  background: #667eea;
+  color: white;
+}
+
+.dot.answered {
+  background: #28a745;
+  color: white;
 }
 
 .btn {
-  padding: 1rem 2rem;
+  padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 5px;
-  font-size: 1rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
-  min-width: 150px;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-primary {
-  background-color: #667eea;
+  background: #667eea;
   color: white;
-}
-
-.btn-primary:hover {
-  background-color: #5a6fd8;
 }
 
 .btn-secondary {
-  background-color: #6c757d;
+  background: #6c757d;
   color: white;
 }
 
-.btn-secondary:hover {
-  background-color: #5a6268;
+.btn-success {
+  background: #28a745;
+  color: white;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
 }
 
 /* Modal styles */
@@ -331,7 +495,6 @@ export default {
 .modal-content p {
   margin-bottom: 1.5rem;
   color: #666;
-  line-height: 1.5;
 }
 
 .modal-actions {
@@ -340,40 +503,25 @@ export default {
   justify-content: center;
 }
 
-.modal-actions .btn {
-  min-width: 120px;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
-  .quiz-taking {
-    padding: 1rem;
-  }
-  
-  .quiz-header {
+  .header {
     flex-direction: column;
     gap: 1rem;
     text-align: center;
   }
   
-  .quiz-content {
-    padding: 1rem;
+  .quiz-meta {
+    justify-content: center;
   }
   
-  .question-statement {
-    padding: 1rem;
-  }
-  
-  .option-item {
-    padding: 0.75rem;
-  }
-  
-  .quiz-actions {
+  .navigation {
     flex-direction: column;
+    gap: 1rem;
   }
   
-  .btn {
-    width: 100%;
+  .question-dots {
+    order: -1;
   }
 }
-</style> 
+</style>

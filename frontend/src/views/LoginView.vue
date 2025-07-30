@@ -92,7 +92,14 @@ export default {
 
     const handleLogin = async () => {
       try {
-        const result = await authStore.login(email.value, password.value)
+        // Try admin login first, then regular login
+        let result = await authStore.adminLogin(email.value, password.value)
+        
+        if (!result.success) {
+          // If admin login fails, try regular login
+          result = await authStore.login(email.value, password.value)
+        }
+        
         if (result.success) {
           // Redirect based on user role
           if (authStore.isAdmin) {

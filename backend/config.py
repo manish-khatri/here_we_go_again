@@ -8,7 +8,10 @@ class LocalDevelopmentConfig(Config):
     SECURITY_PASSWORD_HASH = 'bcrypt'
     SECURITY_PASSWORD_SALT = 'swaadanusar'
     SECRET_KEY = "mypasswordkey"
-    SECURITY_TOKEN_AUTHENTICATION_HEADER = 'Authentication_token'
 
     WTF_CSRF_ENABLED = False #kind of authentication
+
+    # Celery/Redis config
+    CELERY_BROKER_URL = 'redis://localhost:6379/0'
+    CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
