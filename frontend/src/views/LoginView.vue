@@ -100,7 +100,7 @@
               
               <div class="text-center">
                 <p class="text-muted mb-3">Don't have an account?</p>
-                <button type="button" @click="showRegister = true" class="btn btn-outline-primary btn-lg px-4">
+                <button type="button" @click="openRegister" class="btn btn-outline-primary btn-lg px-4">
                   <i class="bi bi-person-plus me-2"></i>Create Account
                 </button>
               </div>
@@ -111,12 +111,12 @@
     </div>
 
     <!-- Registration Modal -->
-    <div v-if="showRegister" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
-      <div class="modal-dialog modal-lg">
+    <div v-if="showRegister" class="modal d-block" tabindex="-1" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1050; display: flex; align-items: center; justify-content: center;">
+      <div class="modal-dialog modal-lg" style="margin: 0;">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Quiz Master Registration</h5>
-            <button type="button" class="btn-close" @click="closeRegister"></button>
+            <button type="button" class="btn-close" @click="closeRegister" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <div v-if="regError" class="alert alert-danger" role="alert">
@@ -217,11 +217,11 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" @click="closeRegister">
-              Existing user?
+              Cancel
             </button>
             <button type="submit" form="registerForm" class="btn btn-primary" :disabled="regLoading">
               <span v-if="regLoading" class="spinner-border spinner-border-sm me-2" role="status"></span>
-              {{ regLoading ? 'Registering...' : 'Submit' }}
+              {{ regLoading ? 'Registering...' : 'Create Account' }}
             </button>
           </div>
         </div>
@@ -401,6 +401,13 @@ export default {
       dobError.value = ''
     }
 
+    const openRegister = () => {
+      console.log('Opening registration modal...')
+      console.log('Current showRegister value:', showRegister.value)
+      showRegister.value = true
+      console.log('New showRegister value:', showRegister.value)
+    }
+
     return {
       // Login form
       email,
@@ -429,6 +436,7 @@ export default {
       handleLogin,
       handleRegister,
       closeRegister,
+      openRegister,
       validateEmail,
       validatePassword,
       validateRegEmail,

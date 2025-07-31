@@ -36,13 +36,20 @@ def register():
         return jsonify({'error': 'Missing required fields'}), 400
     if User.query.filter_by(user_mail=data['user_mail']).first():
         return jsonify({'error': 'User already exists'}), 400
+    
+    # Convert date string to date object
+    try:
+        dob = datetime.strptime(data['dob'], '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+    
     user = User(
         user_id=data['user_mail'],
         user_mail=data['user_mail'],
         user_name=data['user_name'],
         user_pass=generate_password_hash(data['user_pass']),
         qualification=data['qualification'],
-        dob=data['dob'],
+        dob=dob,
         fs_uniquifier=data['user_mail']+'-unique',
         active=True
     )
