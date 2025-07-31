@@ -22,30 +22,46 @@
     <main class="main-content">
       <h1>Summary Charts</h1>
       
-      <div class="charts-container">
+      <!-- Loading state -->
+      <div v-if="loading" class="loading">
+        Loading summary data...
+      </div>
+      
+      <!-- Error state -->
+      <div v-else-if="error" class="error">
+        {{ error }}
+      </div>
+      
+      <!-- Content -->
+      <div v-else class="charts-container">
+        <!-- Overall Statistics -->
+        <div class="stats-overview">
+          <div class="stat-card">
+            <h3>Total Attempts</h3>
+            <div class="stat-number">{{ summaryData.total_attempts || 0 }}</div>
+          </div>
+          <div class="stat-card">
+            <h3>Average Score</h3>
+            <div class="stat-number">{{ summaryData.average_score || 0 }}%</div>
+          </div>
+        </div>
+
         <!-- Subject wise no. of quizzes -->
         <div class="chart-card">
-          <h3>Subject wise no. of quizzes</h3>
+          <h3>Subject wise no. of quiz attempts</h3>
           <div class="chart-container">
-            <div class="bar-chart">
-              <div class="bar-item">
-                <div class="bar-label">Maths</div>
+            <div v-if="summaryData.subject_wise_quizzes && summaryData.subject_wise_quizzes.length > 0" class="bar-chart">
+              <div v-for="subject in summaryData.subject_wise_quizzes" :key="subject.subject_name" class="bar-item">
+                <div class="bar-label">{{ subject.subject_name }}</div>
                 <div class="bar-wrapper">
-                  <div class="bar" :style="{ width: '60%' }">6</div>
+                  <div class="bar" :style="{ width: getBarWidth(subject.attempt_count, maxSubjectAttempts) + '%' }">
+                    {{ subject.attempt_count }}
+                  </div>
                 </div>
               </div>
-              <div class="bar-item">
-                <div class="bar-label">Physics</div>
-                <div class="bar-wrapper">
-                  <div class="bar" :style="{ width: '80%' }">8</div>
-                </div>
-              </div>
-              <div class="bar-item">
-                <div class="bar-label">Chemistry</div>
-                <div class="bar-wrapper">
-                  <div class="bar" :style="{ width: '40%' }">4</div>
-                </div>
-              </div>
+            </div>
+            <div v-else class="no-data">
+              No quiz attempts found
             </div>
           </div>
         </div>
@@ -54,26 +70,20 @@
         <div class="chart-card">
           <h3>Month wise no. of quizzes attempted</h3>
           <div class="chart-container">
-            <div class="pie-chart">
-              <div class="pie">
-                <div class="pie-segment segment-1" style="--percentage: 40%"></div>
-                <div class="pie-segment segment-2" style="--percentage: 35%"></div>
-                <div class="pie-segment segment-3" style="--percentage: 25%"></div>
-              </div>
-              <div class="pie-legend">
-                <div class="legend-item">
-                  <span class="legend-color segment-1"></span>
-                  <span>01 - January</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color segment-2"></span>
-                  <span>02 - February</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color segment-3"></span>
-                  <span>03 - March</span>
+            <div v-if="summaryData.month_wise_attempts && summaryData.month_wise_attempts.length > 0" class="month-chart">
+              <div class="month-bars">
+                <div v-for="month in summaryData.month_wise_attempts" :key="`${month.year}-${month.month}`" class="month-item">
+                  <div class="month-bar-wrapper">
+                    <div class="month-bar" :style="{ height: getBarHeight(month.attempt_count, maxMonthAttempts) + '%' }">
+                      <span class="month-count">{{ month.attempt_count }}</span>
+                    </div>
+                  </div>
+                  <div class="month-label">{{ month.month_name.substring(0, 3) }} {{ month.year }}</div>
                 </div>
               </div>
+            </div>
+            <div v-else class="no-data">
+              No monthly data available
             </div>
           </div>
         </div>
@@ -83,7 +93,7 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -93,14 +103,67 @@ export default {
     const router = useRouter()
     const authStore = useAuthStore()
     const searchQuery = ref('')
+    const summaryData = ref({})
+    const loading = ref(false)
+    const error = ref('')
+
+    const maxSubjectAttempts = computed(() => {
+      if (!summaryData.value.subject_wise_quizzes) return 1
+      return Math.max(...summaryData.value.subject_wise_quizzes.map(s => s.attempt_count), 1)
+    })
+
+    const maxMonthAttempts = computed(() => {
+      if (!summaryData.value.month_wise_attempts) return 1
+      return Math.max(...summaryData.value.month_wise_attempts.map(m => m.attempt_count), 1)
+    })
+
+    const getBarWidth = (value, max) => {
+      return Math.max((value / max) * 100, 5) // Minimum 5% width for visibility
+    }
+
+    const getBarHeight = (value, max) => {
+      return Math.max((value / max) * 100, 10) // Minimum 10% height for visibility
+    }
+
+    const fetchSummaryData = async () => {
+      try {
+        loading.value = true
+        error.value = ''
+        
+        const response = await fetch('/api/user/summary')
+        if (!response.ok) {
+          throw new Error('Failed to fetch summary data')
+        }
+        
+        const data = await response.json()
+        summaryData.value = data
+        console.log('Summary data loaded:', data)
+      } catch (err) {
+        console.error('Error fetching summary:', err)
+        error.value = err.message
+      } finally {
+        loading.value = false
+      }
+    }
 
     const logout = () => {
       authStore.logout()
       router.push('/login')
     }
 
+    onMounted(() => {
+      fetchSummaryData()
+    })
+
     return {
       searchQuery,
+      summaryData,
+      loading,
+      error,
+      maxSubjectAttempts,
+      maxMonthAttempts,
+      getBarWidth,
+      getBarHeight,
       logout
     }
   }
@@ -177,10 +240,54 @@ export default {
   margin-bottom: 2rem;
 }
 
+.loading {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.error {
+  background-color: #fee;
+  color: #c33;
+  padding: 1rem;
+  border-radius: 5px;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
 .charts-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  grid-template-columns: 1fr;
   gap: 2rem;
+}
+
+.stats-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.stat-card h3 {
+  color: #666;
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #667eea;
 }
 
 .chart-card {
@@ -205,10 +312,17 @@ export default {
   min-height: 300px;
 }
 
+.no-data {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 2rem;
+}
+
 /* Bar Chart Styles */
 .bar-chart {
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
 }
 
 .bar-item {
@@ -218,16 +332,17 @@ export default {
 }
 
 .bar-label {
-  width: 80px;
+  width: 100px;
   font-weight: 600;
   color: #333;
+  font-size: 0.9rem;
 }
 
 .bar-wrapper {
   flex: 1;
-  height: 30px;
+  height: 35px;
   background-color: #f0f0f0;
-  border-radius: 15px;
+  border-radius: 17px;
   overflow: hidden;
   margin-left: 1rem;
 }
@@ -235,7 +350,7 @@ export default {
 .bar {
   height: 100%;
   background: linear-gradient(90deg, #667eea, #764ba2);
-  border-radius: 15px;
+  border-radius: 17px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -243,57 +358,67 @@ export default {
   font-weight: bold;
   font-size: 0.875rem;
   transition: width 0.5s ease;
+  min-width: 30px;
 }
 
-/* Pie Chart Styles */
-.pie-chart {
+/* Month Chart Styles */
+.month-chart {
+  width: 100%;
+  max-width: 600px;
+}
+
+.month-bars {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2rem;
-}
-
-.pie {
-  position: relative;
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background: conic-gradient(
-    #667eea 0deg 144deg,
-    #28a745 144deg 252deg,
-    #ffc107 252deg 360deg
-  );
-}
-
-.pie-legend {
-  display: flex;
-  flex-direction: column;
+  align-items: end;
+  justify-content: center;
   gap: 1rem;
+  height: 250px;
+  padding: 1rem 0;
 }
 
-.legend-item {
+.month-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+}
+
+.month-bar-wrapper {
+  height: 200px;
+  width: 40px;
+  background-color: #f0f0f0;
+  border-radius: 20px;
+  display: flex;
+  align-items: end;
+  overflow: hidden;
+}
+
+.month-bar {
+  width: 100%;
+  background: linear-gradient(180deg, #667eea, #764ba2);
+  border-radius: 20px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  justify-content: center;
+  transition: height 0.5s ease;
+  min-height: 20px;
+  position: relative;
 }
 
-.legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
+.month-count {
+  color: white;
+  font-weight: bold;
+  font-size: 0.8rem;
+  position: absolute;
+  top: 5px;
 }
 
-.legend-color.segment-1 {
-  background-color: #667eea;
-}
-
-.legend-color.segment-2 {
-  background-color: #28a745;
-}
-
-.legend-color.segment-3 {
-  background-color: #ffc107;
+.month-label {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #666;
+  text-align: center;
+  font-weight: 500;
 }
 
 /* Responsive Design */
@@ -306,13 +431,25 @@ export default {
     padding: 1rem;
   }
   
-  .pie {
-    width: 150px;
-    height: 150px;
+  .stats-overview {
+    grid-template-columns: 1fr;
   }
   
-  .pie-legend {
-    grid-template-columns: 1fr;
+  .bar-label {
+    width: 80px;
+    font-size: 0.8rem;
+  }
+  
+  .month-bars {
+    gap: 0.5rem;
+  }
+  
+  .month-item {
+    min-width: 40px;
+  }
+  
+  .month-bar-wrapper {
+    width: 30px;
   }
 }
 </style> 

@@ -240,40 +240,32 @@ export const useQuizStore = defineStore('quiz', () => {
   }
 
   const fetchUpcomingQuizzes = async () => {
+    console.log('fetchUpcomingQuizzes called in store')
     try {
       loading.value = true
       error.value = null
       
-      // For now, we'll use the admin quizzes endpoint
-      // In a real app, you might have a separate endpoint for upcoming quizzes
-      const response = await fetch('/api/admin/quizzes')
+      // Use the public quizzes endpoint
+      console.log('Making request to /api/quizzes')
+      const response = await fetch('/api/quizzes')
+      console.log('Response status:', response.status, response.ok)
       const data = await response.json()
+      console.log('Raw API data:', data)
       
       if (response.ok) {
-        // Get subjects to map quiz to subject name
-        const subjectsResponse = await fetch('/api/subjects')
-        const subjectsData = await subjectsResponse.json()
-        const subjectsMap = {}
-        subjectsData.forEach(subject => {
-          subject.chapters.forEach(chapter => {
-            subjectsMap[chapter.chp_id] = {
-              subject: subject.sub_name,
-              chapter: chapter.chp_name
-            }
-          })
-        })
-        
-        upcomingQuizzes.value = data.map(quiz => {
-          const subjectInfo = subjectsMap[quiz.chp_id] || { subject: 'Unknown', chapter: 'Unknown' }
-          return {
-            q_id: quiz.q_id,
-            questionCount: 3, // This would come from questions count
-            date_of_quiz: quiz.date_of_quiz,
-            time_dur: quiz.time_dur,
-            subject: subjectInfo.subject,
-            chapter: subjectInfo.chapter
-          }
-        })
+        upcomingQuizzes.value = data.map(quiz => ({
+          q_id: quiz.q_id,
+          q_name: quiz.q_name,
+          questionCount: quiz.questionCount || 0,
+          date_of_quiz: quiz.date_of_quiz,
+          time_dur: quiz.time_dur,
+          subject: quiz.subject,
+          chapter: quiz.chapter,
+          chp_id: quiz.chp_id,
+          sub_id: quiz.sub_id,
+          remarks: quiz.remarks
+        }))
+        console.log('Mapped quizzes:', upcomingQuizzes.value)
         return { success: true }
       } else {
         throw new Error(data.error || 'Failed to fetch upcoming quizzes')

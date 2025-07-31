@@ -146,7 +146,14 @@ export default {
     }
 
     onMounted(async () => {
-      await quizStore.fetchUpcomingQuizzes()
+      console.log('UserDashboard mounted, fetching quizzes...')
+      try {
+        const result = await quizStore.fetchUpcomingQuizzes()
+        console.log('Fetch result:', result)
+        console.log('Quizzes in store:', quizStore.upcomingQuizzes)
+      } catch (error) {
+        console.error('Error in onMounted:', error)
+      }
     })
 
     return {

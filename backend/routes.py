@@ -205,6 +205,36 @@ def delete_chapter(chp_id):
     return jsonify({'message': 'Chapter deleted'}), 200
 
 # ----------- QUIZZES CRUD -----------
+@app.get('/api/quizzes')
+def get_all_quizzes():
+    """Public endpoint for users to view all available quizzes"""
+    quizzes = Quiz.query.all()
+    quiz_list = []
+    
+    for quiz in quizzes:
+        # Get question count for this quiz
+        question_count = Question.query.filter_by(q_id=quiz.q_id).count()
+        
+        # Get subject and chapter names
+        chapter = Chapter.query.filter_by(chp_id=quiz.chp_id).first()
+        subject = Subject.query.filter_by(sub_id=quiz.sub_id).first()
+        
+        quiz_data = {
+            'q_id': quiz.q_id,
+            'q_name': quiz.q_name,
+            'chp_id': quiz.chp_id,
+            'sub_id': quiz.sub_id,
+            'date_of_quiz': str(quiz.date_of_quiz),
+            'time_dur': str(quiz.time_dur),
+            'remarks': quiz.remarks,
+            'questionCount': question_count,
+            'subject': subject.sub_name if subject else 'Unknown',
+            'chapter': chapter.chp_name if chapter else 'Unknown'
+        }
+        quiz_list.append(quiz_data)
+    
+    return jsonify(quiz_list), 200
+
 @app.get('/api/chapters/<chp_id>/quizzes')
 def get_quizzes(chp_id):
     quizzes = Quiz.query.filter_by(chp_id=chp_id).all()
@@ -222,13 +252,76 @@ def create_quiz(chp_id):
         return jsonify({'error': 'Missing required fields'}), 400
     if Quiz.query.filter_by(q_id=data['q_id']).first():
         return jsonify({'error': 'Quiz already exists'}), 400
+    
+    # Convert date string to date object
+    from datetime import datetime, time
+    try:
+        if isinstance(data['date_of_quiz'], str):
+            quiz_date = datetime.strptime(data['date_of_quiz'], '%Y-%m-%d').date()
+        else:
+            quiz_date = data['date_of_quiz']
+        
+        # Convert duration (minutes) to time object  
+        duration_minutes = int(data['time_dur'])
+        hours = duration_minutes // 60
+        minutes = duration_minutes % 60
+        quiz_duration = time(hour=hours, minute=minutes)
+        
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': f'Invalid date or duration format: {str(e)}'}), 400
+    
     quiz = Quiz(
         q_id=data['q_id'],
         q_name=data['q_name'],
         chp_id=chp_id,
         sub_id=data['sub_id'],
-        date_of_quiz=data['date_of_quiz'],
-        time_dur=data['time_dur'],
+        date_of_quiz=quiz_date,
+        time_dur=quiz_duration,
+        remarks=data.get('remarks')
+    )
+    db.session.add(quiz)
+    db.session.commit()
+    return jsonify({'message': 'Quiz created'}), 201
+
+@app.post('/api/quizzes')
+@roles_required('admin')
+def create_quiz_direct():
+    data = request.get_json()
+    required = ['q_id', 'q_name', 'chp_id', 'date_of_quiz', 'time_dur']
+    if not all(field in data for field in required):
+        return jsonify({'error': 'Missing required fields'}), 400
+    if Quiz.query.filter_by(q_id=data['q_id']).first():
+        return jsonify({'error': 'Quiz already exists'}), 400
+    
+    # Get the sub_id from the chapter
+    chapter = Chapter.query.filter_by(chp_id=data['chp_id']).first()
+    if not chapter:
+        return jsonify({'error': 'Chapter not found'}), 404
+    
+    # Convert date string to date object
+    from datetime import datetime, time
+    try:
+        if isinstance(data['date_of_quiz'], str):
+            quiz_date = datetime.strptime(data['date_of_quiz'], '%Y-%m-%d').date()
+        else:
+            quiz_date = data['date_of_quiz']
+        
+        # Convert duration (minutes) to time object  
+        duration_minutes = int(data['time_dur'])
+        hours = duration_minutes // 60
+        minutes = duration_minutes % 60
+        quiz_duration = time(hour=hours, minute=minutes)
+        
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': f'Invalid date or duration format: {str(e)}'}), 400
+    
+    quiz = Quiz(
+        q_id=data['q_id'],
+        q_name=data['q_name'],
+        chp_id=data['chp_id'],
+        sub_id=chapter.sub_id,
+        date_of_quiz=quiz_date,
+        time_dur=quiz_duration,
         remarks=data.get('remarks')
     )
     db.session.add(quiz)
@@ -242,9 +335,26 @@ def update_quiz(q_id):
     if not quiz:
         return jsonify({'error': 'Quiz not found'}), 404
     data = request.get_json()
+    
+    # Convert date and time if provided
+    from datetime import datetime, time
+    try:
+        if 'date_of_quiz' in data and data['date_of_quiz']:
+            if isinstance(data['date_of_quiz'], str):
+                quiz.date_of_quiz = datetime.strptime(data['date_of_quiz'], '%Y-%m-%d').date()
+            else:
+                quiz.date_of_quiz = data['date_of_quiz']
+        
+        if 'time_dur' in data and data['time_dur']:
+            duration_minutes = int(data['time_dur'])
+            hours = duration_minutes // 60
+            minutes = duration_minutes % 60
+            quiz.time_dur = time(hour=hours, minute=minutes)
+            
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': f'Invalid date or duration format: {str(e)}'}), 400
+    
     quiz.q_name = data.get('q_name', quiz.q_name)
-    quiz.date_of_quiz = data.get('date_of_quiz', quiz.date_of_quiz)
-    quiz.time_dur = data.get('time_dur', quiz.time_dur)
     quiz.remarks = data.get('remarks', quiz.remarks)
     db.session.commit()
     return jsonify({'message': 'Quiz updated'}), 200
@@ -264,7 +374,24 @@ def delete_quiz(q_id):
 def get_questions(q_id):
     questions = Question.query.filter_by(q_id=q_id).all()
     return jsonify([
-        {'ques_id': q.ques_id, 'sub_id': q.sub_id, 'chp_id': q.chp_id, 'q_id': q.q_id, 'statement': q.statement, 'options': q.options, 'answer': q.answer}
+        {
+            'qsn_id': q.ques_id,  # Map ques_id to qsn_id for frontend
+            'ques_id': q.ques_id,  # Keep both for compatibility
+            'sub_id': q.sub_id, 
+            'chp_id': q.chp_id, 
+            'q_id': q.q_id, 
+            'qsn_desc': q.statement,  # Map statement to qsn_desc
+            'statement': q.statement,  # Keep both for compatibility
+            'question_text': q.statement,  # Alternative field name
+            'options': q.options, 
+            'answer': q.answer,
+            'correct_option': q.answer,  # Map answer to correct_option
+            # Break down options for editing compatibility
+            'option_1': q.options[0] if len(q.options) > 0 else '',
+            'option_2': q.options[1] if len(q.options) > 1 else '',
+            'option_3': q.options[2] if len(q.options) > 2 else '',
+            'option_4': q.options[3] if len(q.options) > 3 else ''
+        }
         for q in questions
     ]), 200
 
@@ -272,19 +399,38 @@ def get_questions(q_id):
 @roles_required('admin')
 def create_question(q_id):
     data = request.get_json()
-    required = ['ques_id', 'sub_id', 'chp_id', 'statement', 'options', 'answer']
+    
+    # Check required fields from frontend
+    required = ['qsn_id', 'qsn_desc', 'option_1', 'option_2', 'option_3', 'option_4', 'correct_option']
     if not all(field in data for field in required):
-        return jsonify({'error': 'Missing required fields'}), 400
-    if Question.query.filter_by(ques_id=data['ques_id']).first():
+        missing_fields = [field for field in required if field not in data]
+        return jsonify({'error': f'Missing required fields: {missing_fields}'}), 400
+    
+    # Check if question already exists
+    if Question.query.filter_by(ques_id=data['qsn_id']).first():
         return jsonify({'error': 'Question already exists'}), 400
+    
+    # Get quiz to obtain sub_id and chp_id
+    quiz = Quiz.query.filter_by(q_id=q_id).first()
+    if not quiz:
+        return jsonify({'error': 'Quiz not found'}), 404
+    
+    # Convert individual options to JSON array
+    options = [
+        data['option_1'],
+        data['option_2'], 
+        data['option_3'],
+        data['option_4']
+    ]
+    
     question = Question(
-        ques_id=data['ques_id'],
-        sub_id=data['sub_id'],
-        chp_id=data['chp_id'],
+        ques_id=data['qsn_id'],
+        sub_id=quiz.sub_id,
+        chp_id=quiz.chp_id,
         q_id=q_id,
-        statement=data['statement'],
-        options=data['options'],
-        answer=data['answer']
+        statement=data['qsn_desc'],
+        options=options,
+        answer=str(data['correct_option'])
     )
     db.session.add(question)
     db.session.commit()
@@ -297,9 +443,25 @@ def update_question(ques_id):
     if not question:
         return jsonify({'error': 'Question not found'}), 404
     data = request.get_json()
-    question.statement = data.get('statement', question.statement)
-    question.options = data.get('options', question.options)
-    question.answer = data.get('answer', question.answer)
+    
+    # Update statement if provided
+    if 'qsn_desc' in data:
+        question.statement = data['qsn_desc']
+    
+    # Update options if provided
+    if all(field in data for field in ['option_1', 'option_2', 'option_3', 'option_4']):
+        options = [
+            data['option_1'],
+            data['option_2'], 
+            data['option_3'],
+            data['option_4']
+        ]
+        question.options = options
+    
+    # Update correct answer if provided
+    if 'correct_option' in data:
+        question.answer = str(data['correct_option'])
+    
     db.session.commit()
     return jsonify({'message': 'Question updated'}), 200
 
@@ -504,6 +666,24 @@ def admin_list_scores():
         for s in scores
     ]), 200
 
+@app.get('/api/admin/subjects')
+@roles_required('admin')
+def admin_list_subjects():
+    subjects = Subject.query.all()
+    return jsonify([
+        {'sub_id': s.sub_id, 'sub_name': s.sub_name, 'sub_desc': s.sub_desc}
+        for s in subjects
+    ]), 200
+
+@app.get('/api/admin/chapters')
+@roles_required('admin')
+def admin_list_chapters():
+    chapters = Chapter.query.all()
+    return jsonify([
+        {'chp_id': c.chp_id, 'chp_name': c.chp_name, 'chp_desc': c.chp_desc, 'sub_id': c.sub_id}
+        for c in chapters
+    ]), 200
+
 # ----------- CSV EXPORT ENDPOINTS -----------
 @app.post('/api/export/user-scores')
 @auth_required()
@@ -615,3 +795,162 @@ def validate_quiz_data():
         return jsonify({'valid': False, 'errors': errors}), 400
     
     return jsonify({'valid': True, 'message': 'Quiz data is valid'}), 200
+
+
+# ----------- USER SUMMARY API -----------
+@app.get('/api/user/summary')
+@auth_required()
+def user_summary():
+    user_id = current_user.user_id
+    
+    # Get all scores for the user
+    scores = Score.query.filter_by(user_id=user_id).all()
+    
+    if not scores:
+        return jsonify({
+            'subject_wise_quizzes': [],
+            'month_wise_attempts': [],
+            'total_attempts': 0,
+            'average_score': 0
+        }), 200
+    
+    # Subject-wise quiz attempts
+    subject_attempts = db.session.query(
+        Subject.sub_name.label('subject_name'),
+        db.func.count(Score.score_id).label('attempt_count')
+    ).join(Quiz, Subject.sub_id == Quiz.sub_id)\
+     .join(Score, Quiz.q_id == Score.q_id)\
+     .filter(Score.user_id == user_id)\
+     .group_by(Subject.sub_id, Subject.sub_name).all()
+    
+    # Month-wise quiz attempts (last 12 months)
+    from datetime import datetime, timedelta
+    from sqlalchemy import extract
+    
+    current_date = datetime.now()
+    twelve_months_ago = current_date - timedelta(days=365)
+    
+    month_attempts = db.session.query(
+        extract('month', Score.time_stamp).label('month'),
+        extract('year', Score.time_stamp).label('year'),
+        db.func.count(Score.score_id).label('attempt_count')
+    ).filter(
+        Score.user_id == user_id,
+        Score.time_stamp >= twelve_months_ago
+    ).group_by(
+        extract('month', Score.time_stamp),
+        extract('year', Score.time_stamp)
+    ).all()
+    
+    # Calculate statistics
+    total_attempts = len(scores)
+    average_score = sum(score.total_score for score in scores) / total_attempts if scores else 0
+    
+    # Format month names
+    month_names = {
+        1: 'January', 2: 'February', 3: 'March', 4: 'April',
+        5: 'May', 6: 'June', 7: 'July', 8: 'August',
+        9: 'September', 10: 'October', 11: 'November', 12: 'December'
+    }
+    
+    return jsonify({
+        'subject_wise_quizzes': [
+            {
+                'subject_name': attempt.subject_name,
+                'attempt_count': attempt.attempt_count
+            } for attempt in subject_attempts
+        ],
+        'month_wise_attempts': [
+            {
+                'month': attempt.month,
+                'year': attempt.year,
+                'month_name': month_names.get(attempt.month, f'Month {attempt.month}'),
+                'attempt_count': attempt.attempt_count
+            } for attempt in month_attempts
+        ],
+        'total_attempts': total_attempts,
+        'average_score': round(average_score, 2)
+    }), 200
+
+
+# ----------- INDIVIDUAL QUIZ RESULT APIS -----------
+@app.get('/api/scores/<quiz_id>')
+@auth_required()
+def get_quiz_result(quiz_id):
+    """Get detailed result for a specific quiz attempt by the current user"""
+    user_id = current_user.user_id
+    
+    # Get the quiz result for this user and quiz
+    score = Score.query.filter_by(user_id=user_id, q_id=quiz_id).first()
+    
+    if not score:
+        return jsonify({'error': 'Quiz result not found'}), 404
+    
+    # Get quiz details
+    quiz = Quiz.query.filter_by(q_id=quiz_id).first()
+    subject = None
+    chapter = None
+    
+    if quiz:
+        if quiz.sub_id:
+            subject = Subject.query.filter_by(sub_id=quiz.sub_id).first()
+        if quiz.chp_id:
+            chapter = Chapter.query.filter_by(chp_id=quiz.chp_id).first()
+    
+    # Get total questions count for this quiz
+    total_questions = Question.query.filter_by(q_id=quiz_id).count()
+    print(f"DEBUG: Quiz ID: {quiz_id}, Total Questions: {total_questions}, Score: {score.total_score}")
+    
+    # Calculate correct answers based on score percentage
+    if total_questions > 0 and score.total_score > 0:
+        correct_answers = round((score.total_score / 100) * total_questions)
+        print(f"DEBUG: Calculated correct answers: {correct_answers}")
+    else:
+        correct_answers = 0
+    
+    return jsonify({
+        'q_id': score.q_id,
+        'quiz_name': quiz.q_name if quiz else quiz_id,
+        'total_score': score.total_score,
+        'time_stamp': score.time_stamp.isoformat() if score.time_stamp else None,
+        'total_questions': total_questions,
+        'correct_answers': correct_answers,
+        'subject': subject.sub_name if subject else None,
+        'chapter': chapter.chp_name if chapter else None,
+        'time_taken': getattr(score, 'time_taken', None)
+    }), 200
+
+
+@app.get('/api/scores/<quiz_id>/details')
+@auth_required()
+def get_quiz_result_details(quiz_id):
+    """Get detailed question-by-question breakdown for a quiz attempt"""
+    user_id = current_user.user_id
+    
+    # Check if user has taken this quiz
+    score = Score.query.filter_by(user_id=user_id, q_id=quiz_id).first()
+    if not score:
+        return jsonify({'error': 'Quiz result not found'}), 404
+    
+    # Get all questions for this quiz
+    questions = Question.query.filter_by(q_id=quiz_id).all()
+    
+    # For now, we'll return mock detailed data since we don't store individual answers
+    # In a real implementation, you'd store user answers for each question
+    question_details = []
+    for i, question in enumerate(questions):
+        # Mock data - in reality this would come from a user_answers table
+        is_correct = i < len(questions) * (score.total_score / 100)
+        
+        question_details.append({
+            'qsn_id': question.ques_id,
+            'question_text': question.statement,
+            'user_answer': 'Mock Answer',  # Mock user answer - would come from user_answers table
+            'correct_answer': question.answer,
+            'is_correct': is_correct
+        })
+    
+    return jsonify({
+        'quiz_id': quiz_id,
+        'questions': question_details
+    }), 200

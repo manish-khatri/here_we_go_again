@@ -22,7 +22,30 @@
     <main class="main-content">
       <h1>Summary Charts</h1>
       
-      <div class="charts-container">
+      <!-- Loading State -->
+      <div v-if="chartsLoading" class="loading-state">
+        <div class="loading-content">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+          </div>
+          <h4 class="loading-text">Loading Dashboard Data</h4>
+          <p class="loading-subtitle">Please wait while we fetch your analytics...</p>
+        </div>
+      </div>
+      
+      <!-- Error State -->
+      <div v-else-if="chartsError" class="error-state">
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle-fill me-3"></i>
+          {{ chartsError }}
+          <button @click="loadChartData" class="btn btn-sm btn-outline-danger ms-3">
+            <i class="bi bi-arrow-clockwise"></i> Retry
+          </button>
+        </div>
+      </div>
+      
+      <!-- Charts Container -->
+      <div v-else class="charts-container">
         <!-- Subject wise top scores -->
         <div class="chart-card">
           <h3>Subject wise top scores</h3>
@@ -76,6 +99,31 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import {
+  Chart,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  LineElement,
+  PointElement
+} from 'chart.js'
+
+// Register Chart.js components
+Chart.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  LineElement,
+  PointElement
+)
 
 export default {
   name: 'AdminSummary',
@@ -101,19 +149,35 @@ export default {
       router.push('/login')
     }
 
+    // Loading and error states for charts
+    const chartsLoading = ref(true)
+    const chartsError = ref('')
+
     const loadChartData = async () => {
       try {
+        chartsLoading.value = true
+        chartsError.value = ''
+        
         // Fetch admin dashboard data
         const response = await fetch('/api/admin/dashboard')
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch data: ${response.status}`)
+        }
+        
         const data = await response.json()
         
-        if (response.ok) {
-          createScoresChart(data.subjectScores || [])
-          createAttemptsChart(data.subjectAttempts || [])
-          createPerformanceChart(data.performanceData || [])
-        }
+        console.log('Dashboard data:', data) // For debugging
+        
+        createScoresChart(data.subjectScores || [])
+        createAttemptsChart(data.subjectAttempts || [])
+        createPerformanceChart(data.performanceData || [])
+        
       } catch (error) {
         console.error('Error loading chart data:', error)
+        chartsError.value = 'Failed to load dashboard data. Please try again.'
+      } finally {
+        chartsLoading.value = false
       }
     }
 
@@ -121,22 +185,31 @@ export default {
       if (!scoresChart.value) return
       
       const ctx = scoresChart.value.getContext('2d')
-      new Chart(ctx, {
+      
+      // Clear any existing chart
+      if (scoresChart.value.chart) {
+        scoresChart.value.chart.destroy()
+      }
+      
+      const labels = subjectScores.length > 0 ? subjectScores.map(item => item.subject_name || 'Unknown') : ['No Data']
+      const data = subjectScores.length > 0 ? subjectScores.map(item => item.average_score || 0) : [0]
+      
+      scoresChart.value.chart = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: subjectScores.map(item => item.subject_name || 'Unknown'),
+          labels: labels,
           datasets: [{
-            label: 'Average Score',
-            data: subjectScores.map(item => item.average_score || 0),
+            label: 'Average Score (%)',
+            data: data,
             backgroundColor: [
-              'rgba(255, 99, 132, 0.8)',
+              'rgba(102, 126, 234, 0.8)',
               'rgba(54, 162, 235, 0.8)',
               'rgba(255, 205, 86, 0.8)',
               'rgba(75, 192, 192, 0.8)',
               'rgba(153, 102, 255, 0.8)'
             ],
             borderColor: [
-              'rgba(255, 99, 132, 1)',
+              'rgba(102, 126, 234, 1)',
               'rgba(54, 162, 235, 1)',
               'rgba(255, 205, 86, 1)',
               'rgba(75, 192, 192, 1)',
@@ -147,10 +220,27 @@ export default {
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Subject-wise Average Scores'
+            }
+          },
           scales: {
             y: {
               beginAtZero: true,
-              max: 100
+              max: 100,
+              title: {
+                display: true,
+                text: 'Score (%)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Subjects'
+              }
             }
           }
         }
@@ -161,24 +251,41 @@ export default {
       if (!attemptsChart.value) return
       
       const ctx = attemptsChart.value.getContext('2d')
-      new Chart(ctx, {
+      
+      // Clear any existing chart
+      if (attemptsChart.value.chart) {
+        attemptsChart.value.chart.destroy()
+      }
+      
+      const labels = subjectAttempts.length > 0 ? subjectAttempts.map(item => item.subject_name || 'Unknown') : ['No Data']
+      const data = subjectAttempts.length > 0 ? subjectAttempts.map(item => item.attempt_count || 0) : [0]
+      
+      attemptsChart.value.chart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: subjectAttempts.map(item => item.subject_name || 'Unknown'),
+          labels: labels,
           datasets: [{
-            data: subjectAttempts.map(item => item.attempt_count || 0),
+            data: data,
             backgroundColor: [
-              'rgba(255, 99, 132, 0.8)',
+              'rgba(102, 126, 234, 0.8)',
               'rgba(54, 162, 235, 0.8)',
               'rgba(255, 205, 86, 0.8)',
               'rgba(75, 192, 192, 0.8)',
-              'rgba(153, 102, 255, 0.8)'
-            ]
+              'rgba(153, 102, 255, 0.8)',
+              'rgba(255, 99, 132, 0.8)'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
           }]
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: {
+            title: {
+              display: true,
+              text: 'Subject-wise Quiz Attempts'
+            },
             legend: {
               position: 'bottom'
             }
@@ -191,25 +298,58 @@ export default {
       if (!performanceChart.value) return
       
       const ctx = performanceChart.value.getContext('2d')
-      new Chart(ctx, {
+      
+      // Clear any existing chart
+      if (performanceChart.value.chart) {
+        performanceChart.value.chart.destroy()
+      }
+      
+      const labels = performanceData.length > 0 ? performanceData.map(item => {
+        const date = new Date(item.date || Date.now())
+        return date.toLocaleDateString()
+      }) : ['No Data']
+      const data = performanceData.length > 0 ? performanceData.map(item => item.average_score || 0) : [0]
+      
+      performanceChart.value.chart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: performanceData.map(item => item.date || 'Unknown'),
+          labels: labels,
           datasets: [{
-            label: 'Average Performance',
-            data: performanceData.map(item => item.average_score || 0),
-            borderColor: 'rgba(75, 192, 192, 1)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            label: 'Average Performance (%)',
+            data: data,
+            borderColor: 'rgba(102, 126, 234, 1)',
+            backgroundColor: 'rgba(102, 126, 234, 0.2)',
             fill: true,
-            tension: 0.4
+            tension: 0.4,
+            pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5
           }]
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Performance Trend (Last 30 Days)'
+            }
+          },
           scales: {
             y: {
               beginAtZero: true,
-              max: 100
+              max: 100,
+              title: {
+                display: true,
+                text: 'Average Score (%)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Date'
+              }
             }
           }
         }
@@ -281,12 +421,15 @@ export default {
       scoresChart,
       attemptsChart,
       performanceChart,
+      chartsLoading,
+      chartsError,
       exportLoading,
       exportTaskId,
       exportMessage,
       exportMessageType,
       downloadUrl,
       logout,
+      loadChartData,
       exportAllScores,
       checkExportStatus
     }
@@ -364,6 +507,105 @@ export default {
   margin-bottom: 2rem;
 }
 
+/* Loading State */
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
+}
+
+.loading-content {
+  text-align: center;
+  max-width: 300px;
+}
+
+.loading-spinner {
+  margin-bottom: 2rem;
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: #374151;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.loading-subtitle {
+  color: #6b7280;
+  margin-bottom: 0;
+}
+
+/* Error State */
+.error-state {
+  margin-bottom: 2rem;
+}
+
+.alert {
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+}
+
+.alert-danger {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+/* Export Actions */
+.export-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.export-message {
+  padding: 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.export-message.alert-info {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #dbeafe;
+}
+
+.export-message.alert-success {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.export-message.alert-danger {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
 .charts-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
@@ -389,7 +631,9 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 300px;
+  min-height: 400px;
+  height: 400px;
+  position: relative;
 }
 
 /* Bar Chart Styles */
@@ -501,6 +745,72 @@ export default {
 
 .legend-color.segment-4 {
   background-color: #dc3545;
+}
+
+/* Button Styles */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.btn-success {
+  background: #28a745;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #218838;
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.btn-outline-danger {
+  background: transparent;
+  color: #dc3545;
+  border: 1px solid #dc3545;
+}
+
+.btn-outline-danger:hover:not(:disabled) {
+  background: #dc3545;
+  color: white;
 }
 
 /* Responsive Design */

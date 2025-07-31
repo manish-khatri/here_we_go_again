@@ -7,6 +7,7 @@ import UserDashboard from '../views/UserDashboard.vue'
 import UserScores from '../views/UserScores.vue'
 import UserSummary from '../views/UserSummary.vue'
 import QuizTaking from '../views/QuizTaking.vue'
+import QuizResult from '../views/QuizResult.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -54,6 +55,11 @@ const router = createRouter({
       path: '/user/quiz/:quizId',
       name: 'quiz-taking',
       component: QuizTaking
+    },
+    {
+      path: '/user/quiz/:quizId/result',
+      name: 'quiz-result',
+      component: QuizResult
     }
   ]
 })

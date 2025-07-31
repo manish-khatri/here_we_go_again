@@ -16,30 +16,43 @@
           class="search-input"
         />
       </div>
-      <div class="welcome">Welcome User</div>
+      <div class="welcome">Welcome {{ authStore.currentUser?.name || 'User' }}</div>
     </header>
 
     <main class="main-content">
       <h1>Quiz Scores</h1>
       
-      <div class="scores-table-container">
+      <div v-if="quizStore.loading" class="loading">
+        Loading scores...
+      </div>
+      
+      <div v-else-if="quizStore.error" class="error">
+        Error: {{ quizStore.error }}
+      </div>
+      
+      <div v-else class="scores-table-container">
         <table class="scores-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>No. of Questions</th>
-              <th>Date</th>
+              <th>Quiz ID</th>
+              <th>Date Taken</th>
               <th>Score</th>
+              <th>Action</th>
             </tr>
           </thead>
-                      <tbody>
-              <tr v-for="score in userScores" :key="score.score_id">
-                <td>{{ score.q_id }}</td>
-                <td>{{ score.total_score }}</td>
-                <td>{{ new Date(score.time_stamp).toLocaleDateString() }}</td>
-                <td class="score">{{ score.total_score }}</td>
-              </tr>
-            </tbody>
+          <tbody>
+            <tr v-for="score in filteredScores" :key="score.score_id">
+              <td>{{ score.q_id }}</td>
+              <td>{{ formatDate(score.time_stamp) }}</td>
+              <td class="score">{{ score.total_score }}%</td>
+              <td>
+                <button @click="viewScore(score)" class="btn-view">View Details</button>
+              </td>
+            </tr>
+            <tr v-if="filteredScores.length === 0">
+              <td colspan="4" class="no-data">No scores available</td>
+            </tr>
+          </tbody>
         </table>
       </div>
 
@@ -49,7 +62,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useQuizStore } from '../stores/quiz'
@@ -62,20 +75,46 @@ export default {
     const quizStore = useQuizStore()
     const searchQuery = ref('')
 
+    const filteredScores = computed(() => {
+      if (!searchQuery.value) return quizStore.userScores
+      return quizStore.userScores.filter(score => 
+        score.q_id.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        formatDate(score.time_stamp).toLowerCase().includes(searchQuery.value.toLowerCase())
+      )
+    })
+
     const logout = () => {
       authStore.logout()
       router.push('/login')
     }
 
-    onMounted(() => {
+    const formatDate = (dateString) => {
+      if (!dateString) return 'N/A'
+      try {
+        return new Date(dateString).toLocaleDateString()
+      } catch {
+        return dateString
+      }
+    }
+
+    const viewScore = (score) => {
+      // Navigate to quiz details or show a modal with score details
+      router.push(`/user/quiz/${score.q_id}/result`)
+    }
+
+    onMounted(async () => {
       // Load user scores data
-      quizStore.fetchUserScores()
+      await quizStore.fetchUserScores()
     })
 
     return {
       searchQuery,
-      userScores: quizStore.userScores,
-      logout
+      filteredScores,
+      quizStore,
+      authStore,
+      logout,
+      formatDate,
+      viewScore
     }
   }
 }
@@ -179,6 +218,50 @@ export default {
 
 .scores-table tr:hover {
   background-color: #f8f9fa;
+}
+
+.score {
+  font-weight: bold;
+  color: #28a745;
+}
+
+.scores-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.btn-view {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-view:hover {
+  background-color: #138496;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+}
+
+.loading {
+  color: #667eea;
+}
+
+.error {
+  color: #dc3545;
+}
+
+.no-data {
+  text-align: center;
+  color: #666;
+  font-style: italic;
 }
 
 .score {

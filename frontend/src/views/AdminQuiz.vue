@@ -102,7 +102,11 @@
                 <div class="questions-preview">
                   <div class="question-preview" v-for="(question, index) in quiz.questions.slice(0, 3)" :key="question.qsn_id">
                     <span class="question-number">{{ index + 1 }}</span>
-                    <span class="question-text">{{ (question.qsn_desc || question.question_text || '').substring(0, 50) }}...</span>
+                    <span class="question-text">{{ 
+                      (question.qsn_desc || question.question_text || 'No question text').length > 50 
+                        ? (question.qsn_desc || question.question_text || 'No question text').substring(0, 50) + '...' 
+                        : (question.qsn_desc || question.question_text || 'No question text')
+                    }}</span>
                     <div class="question-actions">
                       <button @click="editQuestion(question)" class="btn-edit-question" title="Edit Question">
                         <i class="bi bi-pencil"></i>
@@ -142,176 +146,207 @@
     </main>
 
     <!-- Quiz Modal -->
-    <div v-if="showNewQuizModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              <i class="bi bi-puzzle-fill me-2"></i>
-              {{ selectedQuizId ? 'Edit Quiz' : 'Create New Quiz' }}
-            </h5>
-            <button type="button" class="btn-close" @click="closeQuizModal"></button>
-          </div>
-          <div class="modal-body">
-            <form @submit.prevent="saveQuiz" id="quizForm">
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="quiz-name" class="form-label">Quiz Name</label>
-                    <input type="text" 
-                           id="quiz-name" 
-                           class="form-control" 
-                           v-model="newQuiz.name" 
-                           placeholder="Enter quiz name"
-                           required />
+    <div v-if="showNewQuizModal" class="modal-container">
+      <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">
+                <i class="bi bi-puzzle-fill me-2"></i>
+                {{ selectedQuizId ? 'Edit Quiz' : 'Create New Quiz' }}
+              </h5>
+              <button type="button" class="btn-close" @click="closeQuizModal"></button>
+            </div>
+            <div class="modal-body">
+              <form @submit.prevent="saveQuiz" id="quizForm">
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="quiz-name" class="form-label">Quiz Name</label>
+                      <input type="text" 
+                             id="quiz-name" 
+                             class="form-control" 
+                             v-model="newQuiz.name" 
+                             placeholder="Enter quiz name"
+                             required />
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="subject-select" class="form-label">Subject</label>
+                      <select id="subject-select" 
+                              class="form-select" 
+                              v-model="newQuiz.subjectId" 
+                              required 
+                              :disabled="!!selectedQuizId || subjectsLoading">
+                        <option value="">{{ subjectsLoading ? 'Loading subjects...' : 'Select Subject' }}</option>
+                        <option v-for="subject in availableSubjects" 
+                                :key="subject.sub_id" 
+                                :value="subject.sub_id">
+                          {{ subject.sub_name }}
+                        </option>
+                      </select>
+                      <div class="text-danger small mt-1" v-if="subjectsError">{{ subjectsError }}</div>
+                    </div>
                   </div>
                 </div>
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="chapter-select" class="form-label">Chapter</label>
-                    <select id="chapter-select" class="form-select" v-model="newQuiz.chapterId" required>
-                      <option value="">Select Chapter</option>
-                      <option v-for="chapter in availableChapters" 
-                              :key="chapter.chp_id" 
-                              :value="chapter.chp_id">
-                        {{ chapter.chp_name }}
-                      </option>
-                    </select>
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="chapter-select" class="form-label">Chapter</label>
+                      <select id="chapter-select" 
+                              class="form-select" 
+                              v-model="newQuiz.chapterId" 
+                              required 
+                              :disabled="!newQuiz.subjectId || !!selectedQuizId || chaptersLoading">
+                        <option value="">
+                          {{ chaptersLoading ? 'Loading chapters...' : 
+                             !newQuiz.subjectId ? 'Select a subject first' : 'Select Chapter' }}
+                        </option>
+                        <option v-for="chapter in chaptersForSelectedSubject" 
+                                :key="chapter.chp_id" 
+                                :value="chapter.chp_id">
+                          {{ chapter.chp_name }}
+                        </option>
+                      </select>
+                      <div class="text-danger small mt-1" v-if="chaptersError">{{ chaptersError }}</div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="quiz-date" class="form-label">Quiz Date</label>
+                      <input type="date" 
+                             id="quiz-date" 
+                             class="form-control" 
+                             v-model="newQuiz.date" 
+                             required />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="quiz-date" class="form-label">Quiz Date</label>
-                    <input type="date" 
-                           id="quiz-date" 
-                           class="form-control" 
-                           v-model="newQuiz.date" 
-                           required />
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="quiz-duration" class="form-label">Duration (minutes)</label>
+                      <input type="number" 
+                             id="quiz-duration" 
+                             class="form-control" 
+                             v-model="newQuiz.duration" 
+                             min="1" 
+                             placeholder="60"
+                             required />
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="quiz-remarks" class="form-label">Remarks (Optional)</label>
+                      <textarea id="quiz-remarks" 
+                            class="form-control" 
+                            v-model="newQuiz.remarks" 
+                            rows="1" 
+                            placeholder="Additional notes about this quiz..."></textarea>
+                    </div>
                   </div>
                 </div>
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="quiz-duration" class="form-label">Duration (minutes)</label>
-                    <input type="number" 
-                           id="quiz-duration" 
-                           class="form-control" 
-                           v-model="newQuiz.duration" 
-                           min="1" 
-                           placeholder="60"
-                           required />
-                  </div>
-                </div>
-              </div>
-              <div class="mb-3">
-                <label for="quiz-remarks" class="form-label">Remarks (Optional)</label>
-                <textarea id="quiz-remarks" 
-                          class="form-control" 
-                          v-model="newQuiz.remarks" 
-                          rows="3" 
-                          placeholder="Additional notes about this quiz..."></textarea>
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeQuizModal">Cancel</button>
-            <button type="submit" form="quizForm" class="btn btn-primary">
-              <i class="bi bi-check-circle me-2"></i>
-              {{ selectedQuizId ? 'Update Quiz' : 'Create Quiz' }}
-            </button>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" @click="closeQuizModal">Cancel</button>
+              <button type="submit" form="quizForm" class="btn btn-primary">
+                <i class="bi bi-check-circle me-2"></i>
+                {{ selectedQuizId ? 'Update Quiz' : 'Create Quiz' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Question Modal -->
-    <div v-if="showNewQuestionModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              <i class="bi bi-question-circle-fill me-2"></i>
-              {{ selectedQuestionId ? 'Edit Question' : 'Add New Question' }}
-            </h5>
-            <button type="button" class="btn-close" @click="closeQuestionModal"></button>
-          </div>
-          <div class="modal-body">
-            <form @submit.prevent="saveQuestion" id="questionForm">
-              <div class="mb-3" v-if="!selectedQuestionId">
-                <label for="question-quiz" class="form-label">Quiz</label>
-                <select id="question-quiz" class="form-select" v-model="newQuestion.quizId" required>
-                  <option value="">Select Quiz</option>
-                  <option v-for="quiz in quizzes" 
-                          :key="quiz.q_id" 
-                          :value="quiz.q_id">
-                    {{ quiz.q_name }}
-                  </option>
-                </select>
-              </div>
-              
-              <div class="mb-3">
-                <label for="question-statement" class="form-label">Question Statement</label>
-                <textarea id="question-statement" 
-                          class="form-control" 
-                          v-model="newQuestion.statement" 
-                          rows="3" 
-                          placeholder="Enter the question statement here..."
-                          required></textarea>
-              </div>
-              
-              <!-- Answer Options -->
-              <div class="mb-4">
-                <label class="form-label">Answer Options</label>
-                <div class="row">
-                  <div class="col-md-6 mb-3" v-for="(option, index) in newQuestion.options" :key="index">
-                    <div class="input-group">
-                      <span class="input-group-text">{{ String.fromCharCode(65 + index) }}</span>
-                      <input type="text" 
-                             class="form-control" 
-                             v-model="newQuestion.options[index]" 
-                             :placeholder="'Option ' + String.fromCharCode(65 + index)"
-                             required />
+    <div v-if="showNewQuestionModal" class="modal-container">
+      <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">
+                <i class="bi bi-question-circle-fill me-2"></i>
+                {{ selectedQuestionId ? 'Edit Question' : 'Add New Question' }}
+              </h5>
+              <button type="button" class="btn-close" @click="closeQuestionModal"></button>
+            </div>
+            <div class="modal-body">
+              <form @submit.prevent="saveQuestion" id="questionForm">
+                <div class="mb-3" v-if="!selectedQuestionId">
+                  <label for="question-quiz" class="form-label">Quiz</label>
+                  <select id="question-quiz" class="form-select" v-model="newQuestion.quizId" required>
+                    <option value="">Select Quiz</option>
+                    <option v-for="quiz in quizzes" 
+                            :key="quiz.q_id" 
+                            :value="quiz.q_id">
+                      {{ quiz.q_name }}
+                    </option>
+                  </select>
+                </div>
+                
+                <div class="mb-3">
+                  <label for="question-statement" class="form-label">Question Statement</label>
+                  <textarea id="question-statement" 
+                            class="form-control" 
+                            v-model="newQuestion.statement" 
+                            rows="3" 
+                            placeholder="Enter the question statement here..."
+                            required></textarea>
+                </div>
+                
+                <!-- Answer Options -->
+                <div class="mb-4">
+                  <label class="form-label">Answer Options</label>
+                  <div class="row">
+                    <div class="col-md-6 mb-3" v-for="(option, index) in newQuestion.options" :key="index">
+                      <div class="input-group">
+                        <span class="input-group-text">{{ String.fromCharCode(65 + index) }}</span>
+                        <input type="text" 
+                               class="form-control" 
+                               v-model="newQuestion.options[index]" 
+                               :placeholder="'Option ' + String.fromCharCode(65 + index)"
+                               required />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="mt-3">
+                    <label class="form-label">Correct Answer</label>
+                    <div class="btn-group w-100" role="group">
+                      <template v-for="(option, index) in newQuestion.options" :key="'radio-' + index">
+                        <input type="radio" 
+                               class="btn-check" 
+                               :id="'option-' + (index + 1)" 
+                               :value="index + 1" 
+                               v-model="newQuestion.correctOption"
+                               required
+                               name="correctOption">
+                        <label class="btn btn-outline-primary" :for="'option-' + (index + 1)">
+                          {{ String.fromCharCode(65 + index) }}
+                        </label>
+                      </template>
                     </div>
                   </div>
                 </div>
                 
-                <div class="mt-3">
-                  <label class="form-label">Correct Answer</label>
-                  <div class="btn-group w-100" role="group">
-                    <input type="radio" class="btn-check" :id="'option-' + (index + 1)" 
-                           :value="index + 1" v-model="newQuestion.correctOption"
-                           v-for="(option, index) in newQuestion.options" :key="'radio-' + index">
-                    <label class="btn btn-outline-primary" :for="'option-' + (index + 1)"
-                           v-for="(option, index) in newQuestion.options" :key="'label-' + index">
-                      {{ String.fromCharCode(65 + index) }}
-                    </label>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label for="question-explanation" class="form-label">Explanation (Optional)</label>
-                <textarea id="question-explanation" 
-                          class="form-control" 
-                          v-model="newQuestion.explanation" 
-                          rows="2" 
-                          placeholder="Provide an explanation for the correct answer..."></textarea>
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeQuestionModal">Cancel</button>
-            <button type="button" 
-                    @click="saveAndAddAnother" 
-                    v-if="!selectedQuestionId"
-                    class="btn btn-success">
-              <i class="bi bi-plus-circle me-2"></i>Save & Add Another
-            </button>
-            <button type="submit" form="questionForm" class="btn btn-primary">
-              <i class="bi bi-check-circle me-2"></i>
-              {{ selectedQuestionId ? 'Update Question' : 'Save Question' }}
-            </button>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" @click="closeQuestionModal">Cancel</button>
+              <button type="button" 
+                      @click="saveAndAddAnother" 
+                      v-if="!selectedQuestionId"
+                      class="btn btn-success">
+                <i class="bi bi-plus-circle me-2"></i>Save & Add Another
+              </button>
+              <button type="submit" form="questionForm" class="btn btn-primary">
+                <i class="bi bi-check-circle me-2"></i>
+                {{ selectedQuestionId ? 'Update Question' : 'Save Question' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -335,9 +370,14 @@ export default {
     // State
     const searchQuery = ref('')
     const loading = ref(false)
+    const subjectsLoading = ref(false)
+    const chaptersLoading = ref(false)
     const error = ref('')
+    const subjectsError = ref('')
+    const chaptersError = ref('')
     const quizzes = ref([])
     const availableChapters = ref([])
+    const availableSubjects = ref([])
     
     // Modal states
     const showNewQuizModal = ref(false)
@@ -348,6 +388,7 @@ export default {
     // Form data
     const newQuiz = ref({
       name: '',
+      subjectId: '',
       chapterId: '',
       date: '',
       duration: 60,
@@ -358,8 +399,7 @@ export default {
       quizId: '',
       statement: '',
       options: ['', '', '', ''],
-      correctOption: 1,
-      explanation: ''
+      correctOption: 1
     })
 
     // Computed
@@ -369,6 +409,11 @@ export default {
         quiz.q_name?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
         quiz.sub_id?.toLowerCase().includes(searchQuery.value.toLowerCase())
       )
+    })
+
+    const chaptersForSelectedSubject = computed(() => {
+      if (!newQuiz.value.subjectId) return []
+      return availableChapters.value.filter(c => c.sub_id === newQuiz.value.subjectId)
     })
 
     // Methods
@@ -410,33 +455,77 @@ export default {
       }
     }
 
-    const fetchChapters = async () => {
+    const fetchSubjects = async () => {
       try {
-        const response = await fetch('/api/chapters')
-        if (response.ok) {
-          availableChapters.value = await response.json()
+        subjectsLoading.value = true
+        subjectsError.value = ''
+        const response = await fetch('/api/admin/subjects') // Updated endpoint
+        if (!response.ok) {
+          throw new Error('Failed to fetch subjects')
         }
+        const data = await response.json()
+        availableSubjects.value = data
+        console.log('Subjects loaded:', data) // Debug log
       } catch (err) {
-        console.error('Error fetching chapters:', err)
+        console.error('Error fetching subjects:', err)
+        subjectsError.value = 'Failed to load subjects. Please try again.'
+      } finally {
+        subjectsLoading.value = false
       }
     }
 
-    const openNewQuizModal = () => {
+    const fetchChapters = async () => {
+      try {
+        chaptersLoading.value = true
+        chaptersError.value = ''
+        const response = await fetch('/api/admin/chapters') // Updated endpoint
+        if (!response.ok) {
+          throw new Error('Failed to fetch chapters')
+        }
+        const data = await response.json()
+        availableChapters.value = data
+        console.log('Chapters loaded:', data) // Debug log
+      } catch (err) {
+        console.error('Error fetching chapters:', err)
+        chaptersError.value = 'Failed to load chapters. Please try again.'
+      } finally {
+        chaptersLoading.value = false
+      }
+    }
+
+    const openNewQuizModal = async () => {
+      // Show modal first to avoid delay
+      showNewQuizModal.value = true
+      
+      try {
+        // Fetch data if not already loaded
+        if (availableSubjects.value.length === 0) {
+          await fetchSubjects()
+        }
+        if (availableChapters.value.length === 0) {
+          await fetchChapters()
+        }
+      } catch (err) {
+        console.error('Error initializing modal:', err)
+      }
+
+      // Reset form
       newQuiz.value = {
         name: '',
+        subjectId: '',
         chapterId: '',
         date: '',
         duration: 60,
         remarks: ''
       }
       selectedQuizId.value = null
-      showNewQuizModal.value = true
     }
 
     const closeQuizModal = () => {
       showNewQuizModal.value = false
       newQuiz.value = {
         name: '',
+        subjectId: '',
         chapterId: '',
         date: '',
         duration: 60,
@@ -450,8 +539,7 @@ export default {
         quizId: quizId || '',
         statement: '',
         options: ['', '', '', ''],
-        correctOption: 1,
-        explanation: ''
+        correctOption: 1
       }
       selectedQuestionId.value = null
       showNewQuestionModal.value = true
@@ -463,8 +551,7 @@ export default {
         quizId: '',
         statement: '',
         options: ['', '', '', ''],
-        correctOption: 1,
-        explanation: ''
+        correctOption: 1
       }
       selectedQuestionId.value = null
     }
@@ -533,8 +620,11 @@ export default {
     }
 
     const editQuiz = (quiz) => {
+      const chapter = availableChapters.value.find(c => c.chp_id === quiz.chp_id);
+      
       newQuiz.value = {
         name: quiz.q_name,
+        subjectId: chapter ? chapter.sub_id : '',
         chapterId: quiz.chp_id,
         date: quiz.date_of_quiz,
         duration: quiz.time_dur,
@@ -588,8 +678,7 @@ export default {
         option_2: newQuestion.value.options[1],
         option_3: newQuestion.value.options[2],
         option_4: newQuestion.value.options[3],
-        correct_option: newQuestion.value.correctOption,
-        explanation: newQuestion.value.explanation
+        correct_option: newQuestion.value.correctOption
       }
 
       const response = await fetch(`/api/quizzes/${newQuestion.value.quizId}/questions`, {
@@ -615,8 +704,7 @@ export default {
         option_2: newQuestion.value.options[1],
         option_3: newQuestion.value.options[2],
         option_4: newQuestion.value.options[3],
-        correct_option: newQuestion.value.correctOption,
-        explanation: newQuestion.value.explanation
+        correct_option: newQuestion.value.correctOption
       }
 
       const response = await fetch(`/api/questions/${selectedQuestionId.value}`, {
@@ -645,8 +733,7 @@ export default {
           question.option_3 || '',
           question.option_4 || ''
         ],
-        correctOption: question.correct_option || 1,
-        explanation: question.explanation || ''
+        correctOption: question.correct_option || 1
       }
       selectedQuestionId.value = question.qsn_id
       showNewQuestionModal.value = true
@@ -683,8 +770,7 @@ export default {
         quizId: quizId,
         statement: '',
         options: ['', '', '', ''],
-        correctOption: 1,
-        explanation: ''
+        correctOption: 1
       }
     }
 
@@ -695,16 +781,29 @@ export default {
 
     // Lifecycle
     onMounted(async () => {
-      await Promise.all([fetchQuizzes(), fetchChapters()])
+      try {
+        await Promise.all([
+          fetchQuizzes(),
+          fetchSubjects(),
+          fetchChapters()
+        ])
+      } catch (err) {
+        console.error('Error during initial data load:', err)
+      }
     })
 
     return {
       // State
       searchQuery,
       loading,
+      subjectsLoading,
+      chaptersLoading,
       error,
+      subjectsError,
+      chaptersError,
       quizzes,
       availableChapters,
+      availableSubjects,
       
       // Modal states
       showNewQuizModal,
@@ -718,6 +817,7 @@ export default {
       
       // Computed
       filteredQuizzes,
+      chaptersForSelectedSubject,
       
       // Methods
       logout,
@@ -1213,6 +1313,16 @@ export default {
   border-radius: 15px;
   padding: 1.5rem;
   margin-bottom: 2rem;
+}
+
+/* Modal Container */
+.modal-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1050; /* Ensure it's above other content */
 }
 
 /* Responsive Design */
