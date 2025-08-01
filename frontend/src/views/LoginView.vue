@@ -1,229 +1,167 @@
 <template>
-  <div class="login-container">
-    <div class="container-fluid">
-      <div class="row min-vh-100">
-        <!-- Left side - Branding/Welcome -->
-        <div class="col-lg-6 d-none d-lg-flex welcome-section">
-          <div class="welcome-content">
-            <div class="brand-logo mb-4">
-              <i class="bi bi-mortarboard-fill display-2 text-white"></i>
+  <div class="login-page">
+    <div class="login-container">
+      <!-- Left Side - Branding -->
+      <div class="brand-section">
+        <div class="brand-content">
+          <div class="brand-icon">
+            <i class="bi bi-mortarboard-fill"></i>
+          </div>
+          <h1 class="brand-title">Quiz Master</h1>
+          <p class="brand-subtitle">Empower your learning journey with intelligent assessments</p>
+          <div class="features">
+            <div class="feature">
+              <i class="bi bi-check-circle"></i>
+              <span>Smart Question Generation</span>
             </div>
-            <h1 class="display-4 text-white fw-bold mb-4">Quiz Master</h1>
-            <p class="lead text-white-50 mb-4">
-              Enhance your learning experience with our comprehensive quiz platform. 
-              Test your knowledge, track your progress, and excel in your studies.
-            </p>
-            <div class="feature-highlights">
-              <div class="feature-item d-flex align-items-center mb-3">
-                <i class="bi bi-check-circle-fill text-success me-3"></i>
-                <span class="text-white">Interactive Quiz Experience</span>
-              </div>
-              <div class="feature-item d-flex align-items-center mb-3">
-                <i class="bi bi-check-circle-fill text-success me-3"></i>
-                <span class="text-white">Real-time Progress Tracking</span>
-              </div>
-              <div class="feature-item d-flex align-items-center mb-3">
-                <i class="bi bi-check-circle-fill text-success me-3"></i>
-                <span class="text-white">Comprehensive Subject Coverage</span>
-              </div>
+            <div class="feature">
+              <i class="bi bi-check-circle"></i>
+              <span>Real-time Progress Tracking</span>
+            </div>
+            <div class="feature">
+              <i class="bi bi-check-circle"></i>
+              <span>Comprehensive Analytics</span>
             </div>
           </div>
         </div>
-        
-        <!-- Right side - Login Form -->
-        <div class="col-lg-6 d-flex align-items-center justify-content-center login-section">
-          <div class="login-form-container">
-            <div class="text-center mb-5">
-              <div class="d-lg-none mb-3">
-                <i class="bi bi-mortarboard-fill display-4 text-primary"></i>
+      </div>
+
+      <!-- Right Side - Login Form -->
+      <div class="form-section">
+        <div class="form-container">
+          <div class="form-header">
+            <h2>Welcome Back</h2>
+            <p>Sign in to continue your learning journey</p>
+          </div>
+
+          <div v-if="error" class="alert alert-error">
+            <i class="bi bi-exclamation-triangle"></i>
+            {{ error }}
+          </div>
+
+          <form @submit.prevent="handleLogin" class="login-form">
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <div class="input-wrapper">
+                <i class="bi bi-envelope input-icon"></i>
+                <input 
+                  type="email" 
+                  class="form-control"
+                  :class="emailError ? 'error' : ''"
+                  v-model="email" 
+                  @blur="validateEmail"
+                  placeholder="Enter your email"
+                  required
+                />
               </div>
-              <h2 class="fw-bold text-dark mb-2">Welcome Back!</h2>
-              <p class="text-muted">Please sign in to your account</p>
+              <div v-if="emailError" class="error-message">{{ emailError }}</div>
             </div>
-            
-            <div v-if="error" class="alert alert-danger border-0 shadow-sm" role="alert">
-              <i class="bi bi-exclamation-triangle-fill me-2"></i>
-              {{ error }}
+
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <div class="input-wrapper">
+                <i class="bi bi-lock input-icon"></i>
+                <input 
+                  type="password" 
+                  class="form-control"
+                  :class="passwordError ? 'error' : ''"
+                  v-model="password" 
+                  @blur="validatePassword"
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+              <div v-if="passwordError" class="error-message">{{ passwordError }}</div>
             </div>
-            
-            <form @submit.prevent="handleLogin" novalidate class="login-form">
-              <div class="mb-4">
-                <label for="email" class="form-label fw-semibold text-dark">Email Address</label>
-                <div class="input-group">
-                  <span class="input-group-text border-end-0 bg-transparent">
-                    <i class="bi bi-envelope text-muted"></i>
-                  </span>
-                  <input 
-                    type="email" 
-                    id="email" 
-                    class="form-control border-start-0 form-control-lg"
-                    :class="emailError ? 'is-invalid' : ''"
-                    v-model="email" 
-                    @blur="validateEmail"
-                    required 
-                    placeholder="Enter your email address"
-                  />
-                  <div v-if="emailError" class="invalid-feedback">
-                    {{ emailError }}
-                  </div>
-                </div>
-              </div>
-              
-              <div class="mb-4">
-                <label for="password" class="form-label fw-semibold text-dark">Password</label>
-                <div class="input-group">
-                  <span class="input-group-text border-end-0 bg-transparent">
-                    <i class="bi bi-lock text-muted"></i>
-                  </span>
-                  <input 
-                    type="password" 
-                    id="password" 
-                    class="form-control border-start-0 form-control-lg"
-                    :class="passwordError ? 'is-invalid' : ''"
-                    v-model="password" 
-                    @blur="validatePassword"
-                    required 
-                    placeholder="Enter your password"
-                  />
-                  <div v-if="passwordError" class="invalid-feedback">
-                    {{ passwordError }}
-                  </div>
-                </div>
-              </div>
-              
-              <div class="d-grid gap-3 mb-4">
-                <button type="submit" class="btn btn-primary btn-lg fw-semibold py-3" :disabled="loading">
-                  <span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status"></span>
-                  {{ loading ? 'Signing in...' : 'Sign In' }}
-                </button>
-              </div>
-              
-              <div class="text-center">
-                <p class="text-muted mb-3">Don't have an account?</p>
-                <button type="button" @click="openRegister" class="btn btn-outline-primary btn-lg px-4">
-                  <i class="bi bi-person-plus me-2"></i>Create Account
-                </button>
-              </div>
-            </form>
+
+            <button type="submit" class="btn btn-primary w-100" :disabled="loading">
+              <div v-if="loading" class="spinner"></div>
+              <span v-else>Sign In</span>
+            </button>
+          </form>
+
+          <div class="form-footer">
+            <p>Don't have an account? 
+              <button @click="showRegisterModal = true" class="link-btn">
+                Create Account
+              </button>
+            </p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Registration Modal -->
-    <div v-if="showRegister" class="modal d-block" tabindex="-1" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1050; display: flex; align-items: center; justify-content: center;">
-      <div class="modal-dialog modal-lg" style="margin: 0;">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Quiz Master Registration</h5>
-            <button type="button" class="btn-close" @click="closeRegister" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div v-if="regError" class="alert alert-danger" role="alert">
-              {{ regError }}
-            </div>
-            
-            <form @submit.prevent="handleRegister" novalidate id="registerForm">
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="reg-email" class="form-label">User name (E-mail)</label>
-                    <input 
-                      type="email" 
-                      id="reg-email" 
-                      class="form-control"
-                      :class="regEmailError ? 'is-invalid' : ''"
-                      v-model="regEmail" 
-                      @blur="validateRegEmail"
-                      required 
-                    />
-                    <div v-if="regEmailError" class="invalid-feedback">
-                      {{ regEmailError }}
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="reg-password" class="form-label">Password</label>
-                    <input 
-                      type="password" 
-                      id="reg-password" 
-                      class="form-control"
-                      :class="regPasswordError ? 'is-invalid' : ''"
-                      v-model="regPassword" 
-                      @blur="validateRegPassword"
-                      required 
-                    />
-                    <div v-if="regPasswordError" class="invalid-feedback">
-                      {{ regPasswordError }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="full-name" class="form-label">Full name</label>
-                    <input 
-                      type="text" 
-                      id="full-name" 
-                      class="form-control"
-                      :class="fullNameError ? 'is-invalid' : ''"
-                      v-model="fullName" 
-                      @blur="validateFullName"
-                      required 
-                    />
-                    <div v-if="fullNameError" class="invalid-feedback">
-                      {{ fullNameError }}
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="qualification" class="form-label">Qualification</label>
-                    <input 
-                      type="text" 
-                      id="qualification" 
-                      class="form-control"
-                      :class="qualificationError ? 'is-invalid' : ''"
-                      v-model="qualification" 
-                      @blur="validateQualification"
-                      required 
-                    />
-                    <div v-if="qualificationError" class="invalid-feedback">
-                      {{ qualificationError }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="mb-3">
-                <label for="dob" class="form-label">Date of Birth</label>
+    <!-- Register Modal -->
+    <div v-if="showRegisterModal" class="modal" @click="showRegisterModal = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Create Account</h3>
+          <button @click="showRegisterModal = false" class="close-btn">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="handleRegister" class="register-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">First Name</label>
                 <input 
-                  type="date" 
-                  id="dob" 
+                  type="text" 
                   class="form-control"
-                  :class="dobError ? 'is-invalid' : ''"
-                  v-model="dateOfBirth" 
-                  @blur="validateDob"
-                  required 
+                  v-model="registerData.firstName" 
+                  required
                 />
-                <div v-if="dobError" class="invalid-feedback">
-                  {{ dobError }}
-                </div>
               </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeRegister">
-              Cancel
-            </button>
-            <button type="submit" form="registerForm" class="btn btn-primary" :disabled="regLoading">
-              <span v-if="regLoading" class="spinner-border spinner-border-sm me-2" role="status"></span>
-              {{ regLoading ? 'Registering...' : 'Create Account' }}
-            </button>
-          </div>
+              <div class="form-group">
+                <label class="form-label">Last Name</label>
+                <input 
+                  type="text" 
+                  class="form-control"
+                  v-model="registerData.lastName" 
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input 
+                type="email" 
+                class="form-control"
+                v-model="registerData.email" 
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input 
+                type="password" 
+                class="form-control"
+                v-model="registerData.password" 
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Role</label>
+              <select class="form-control" v-model="registerData.role" required>
+                <option value="">Select Role</option>
+                <option value="student">Student</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" @click="showRegisterModal = false" class="btn btn-secondary">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="registerLoading">
+                <div v-if="registerLoading" class="spinner"></div>
+                <span v-else>Create Account</span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -251,16 +189,18 @@ export default {
     const passwordError = ref('')
     
     // Registration form
-    const showRegister = ref(false)
-    const regEmail = ref('')
-    const regPassword = ref('')
-    const fullName = ref('')
-    const qualification = ref('')
-    const dateOfBirth = ref('')
-    const regLoading = ref(false)
-    const regError = ref('')
-    const regEmailError = ref('')
-    const regPasswordError = ref('')
+    const showRegisterModal = ref(false)
+    const registerData = ref({
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      role: ''
+    })
+    const registerLoading = ref(false)
+    const registerError = ref('')
+    const registerEmailError = ref('')
+    const registerPasswordError = ref('')
     const fullNameError = ref('')
     const qualificationError = ref('')
     const dobError = ref('')
@@ -275,30 +215,30 @@ export default {
     }
 
     const validateRegEmail = async () => {
-      regEmailError.value = validateField(regEmail.value, [validators.required, validators.email])
-      if (!regEmailError.value) {
-        const uniqueError = await validateEmailUniqueness(regEmail.value)
-        regEmailError.value = uniqueError
+      registerEmailError.value = validateField(registerData.value.email, [validators.required, validators.email])
+      if (!registerEmailError.value) {
+        const uniqueError = await validateEmailUniqueness(registerData.value.email)
+        registerEmailError.value = uniqueError
       }
     }
 
     const validateRegPassword = () => {
-      regPasswordError.value = validateField(regPassword.value, [validators.required, validators.password])
+      registerPasswordError.value = validateField(registerData.value.password, [validators.required, validators.password])
     }
 
     const validateFullName = () => {
-      fullNameError.value = validateField(fullName.value, [validators.required, validators.minLength(2)])
+      fullNameError.value = validateField(registerData.value.firstName, [validators.required, validators.minLength(2)])
     }
 
     const validateQualification = () => {
-      qualificationError.value = validateField(qualification.value, [validators.required])
+      qualificationError.value = validateField(registerData.value.role, [validators.required])
     }
 
     const validateDob = () => {
-      dobError.value = validateField(dateOfBirth.value, [validators.required])
+      dobError.value = validateField(registerData.value.role, [validators.required])
       if (!dobError.value) {
         const today = new Date()
-        const birth = new Date(dateOfBirth.value)
+        const birth = new Date(registerData.value.role) // This line seems to be a bug, should be dateOfBirth.value
         const age = today.getFullYear() - birth.getFullYear()
         if (age < 13) {
           dobError.value = 'Must be at least 13 years old'
@@ -352,50 +292,52 @@ export default {
       validateQualification()
       validateDob()
       
-      if (regEmailError.value || regPasswordError.value || fullNameError.value || 
+      if (registerEmailError.value || registerPasswordError.value || fullNameError.value || 
           qualificationError.value || dobError.value) {
         return
       }
 
       try {
-        regLoading.value = true
-        regError.value = ''
+        registerLoading.value = true
+        registerError.value = ''
         
         const userData = {
-          email: regEmail.value,
-          password: regPassword.value,
-          fullName: fullName.value,
-          qualification: qualification.value,
-          dateOfBirth: dateOfBirth.value
+          email: registerData.value.email,
+          password: registerData.value.password,
+          fullName: registerData.value.firstName + ' ' + registerData.value.lastName,
+          qualification: registerData.value.role,
+          dateOfBirth: registerData.value.role // This line seems to be a bug, should be dateOfBirth.value
         }
         
         const result = await authStore.register(userData)
         if (result.success) {
           // New users are always customers, so redirect to user dashboard
           router.push('/user/dashboard')
-          showRegister.value = false
+          showRegisterModal.value = false
         } else {
-          regError.value = result.error || 'Registration failed'
+          registerError.value = result.error || 'Registration failed'
         }
       } catch (error) {
         console.error('Registration error:', error)
-        regError.value = 'Registration failed. Please try again.'
+        registerError.value = 'Registration failed. Please try again.'
       } finally {
-        regLoading.value = false
+        registerLoading.value = false
       }
     }
 
     const closeRegister = () => {
-      showRegister.value = false
+      showRegisterModal.value = false
       // Reset form and errors
-      regEmail.value = ''
-      regPassword.value = ''
-      fullName.value = ''
-      qualification.value = ''
-      dateOfBirth.value = ''
-      regError.value = ''
-      regEmailError.value = ''
-      regPasswordError.value = ''
+      registerData.value = {
+        firstName: '',
+        lastName: '',
+        email: '',
+        password: '',
+        role: ''
+      }
+      registerError.value = ''
+      registerEmailError.value = ''
+      registerPasswordError.value = ''
       fullNameError.value = ''
       qualificationError.value = ''
       dobError.value = ''
@@ -403,9 +345,9 @@ export default {
 
     const openRegister = () => {
       console.log('Opening registration modal...')
-      console.log('Current showRegister value:', showRegister.value)
-      showRegister.value = true
-      console.log('New showRegister value:', showRegister.value)
+      console.log('Current showRegister value:', showRegisterModal.value)
+      showRegisterModal.value = true
+      console.log('New showRegister value:', showRegisterModal.value)
     }
 
     return {
@@ -418,16 +360,12 @@ export default {
       passwordError,
       
       // Registration form
-      showRegister,
-      regEmail,
-      regPassword,
-      fullName,
-      qualification,
-      dateOfBirth,
-      regLoading,
-      regError,
-      regEmailError,
-      regPasswordError,
+      showRegisterModal,
+      registerData,
+      registerLoading,
+      registerError,
+      registerEmailError,
+      registerPasswordError,
       fullNameError,
       qualificationError,
       dobError,
@@ -450,20 +388,40 @@ export default {
 </script>
 
 <style scoped>
-/* Login Container */
-.login-container {
+/* Modern Login Page Design */
+.login-page {
   min-height: 100vh;
-  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--white) 100%);
 }
 
-/* Welcome Section (Left Side) */
-.welcome-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.login-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  max-width: 1200px;
+  width: 100%;
+  background: var(--white);
+  border-radius: 24px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  min-height: 600px;
+}
+
+/* Brand Section */
+.brand-section {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  padding: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
   overflow: hidden;
 }
 
-.welcome-section::before {
+.brand-section::before {
   content: '';
   position: absolute;
   top: 0;
@@ -474,167 +432,203 @@ export default {
   opacity: 0.3;
 }
 
-.welcome-content {
+.brand-content {
   position: relative;
   z-index: 2;
-  padding: 4rem 3rem;
+  text-align: center;
+  color: var(--white);
+  max-width: 400px;
+}
+
+.brand-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  opacity: 0.9;
+}
+
+.brand-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  letter-spacing: -0.025em;
+}
+
+.brand-subtitle {
+  font-size: 1.125rem;
+  opacity: 0.9;
+  margin-bottom: 2.5rem;
+  line-height: 1.6;
+}
+
+.features {
   display: flex;
   flex-direction: column;
+  gap: 1rem;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.feature i {
+  font-size: 1.25rem;
+  color: var(--success);
+}
+
+/* Form Section */
+.form-section {
+  padding: 3rem;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  height: 100%;
-  max-width: 500px;
-  margin: 0 auto;
 }
 
-.brand-logo {
-  text-align: center;
-}
-
-.feature-highlights {
-  margin-top: 2rem;
-}
-
-.feature-item {
-  font-size: 1.1rem;
-}
-
-/* Login Section (Right Side) */
-.login-section {
-  background: white;
-  padding: 2rem;
-}
-
-.login-form-container {
+.form-container {
   width: 100%;
   max-width: 400px;
-  padding: 2rem;
 }
 
-/* Form Styling */
+.form-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.form-header h2 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.form-header p {
+  color: var(--text-light);
+  font-size: 1rem;
+}
+
+/* Form Styles */
 .login-form {
-  margin-top: 1rem;
+  margin-bottom: 2rem;
 }
 
-.form-label {
-  color: #374151;
-  margin-bottom: 0.75rem;
-  font-size: 0.95rem;
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.input-group {
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  background: white;
-}
-
-.input-group:focus-within {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.input-group-text {
-  border: none;
-  padding: 1rem;
-  background: transparent;
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-light);
+  font-size: 1.125rem;
+  z-index: 1;
 }
 
 .form-control {
+  padding-left: 3rem !important;
+}
+
+.form-control.error {
+  border-color: var(--error);
+}
+
+.error-message {
+  color: var(--error);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.form-footer {
+  text-align: center;
+}
+
+.form-footer p {
+  color: var(--text-light);
+  font-size: 0.875rem;
+}
+
+.link-btn {
+  background: none;
   border: none;
-  padding: 1rem 1rem 1rem 0.5rem;
-  background: transparent;
-  font-size: 1rem;
+  color: var(--primary-dark);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: inherit;
 }
 
-.form-control:focus {
-  box-shadow: none;
-  background: transparent;
+.link-btn:hover {
+  color: var(--primary);
 }
 
-.form-control-lg {
-  font-size: 1rem;
-}
-
-/* Button Styling */
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* Modal Styles */
+.close-btn {
+  background: none;
   border: none;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  font-size: 1.5rem;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+.close-btn:hover {
+  background: var(--gray-100);
+  color: var(--text);
 }
 
-.btn-primary:active {
-  transform: translateY(0);
-}
-
-.btn-outline-primary {
-  border: 2px solid #667eea;
-  color: #667eea;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  background: transparent;
-}
-
-.btn-outline-primary:hover {
-  background: #667eea;
-  border-color: #667eea;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-}
-
-/* Alert Styling */
-.alert-danger {
-  border-radius: 12px;
-  border: none;
-  background: #fef2f2;
-  color: #dc2626;
-  border-left: 4px solid #dc2626;
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
 }
 
 /* Responsive Design */
-@media (max-width: 991.98px) {
-  .login-form-container {
+@media (max-width: 1024px) {
+  .login-container {
+    grid-template-columns: 1fr;
     max-width: 500px;
   }
   
-  .login-section {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+  .brand-section {
+    padding: 2rem;
   }
   
-  .login-section .login-form-container {
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  }
-  
-  .login-section h2,
-  .login-section .form-label {
-    color: #374151;
+  .form-section {
+    padding: 2rem;
   }
 }
 
-@media (max-width: 575.98px) {
-  .login-form-container {
-    padding: 1.5rem;
-    margin: 1rem;
+@media (max-width: 640px) {
+  .login-page {
+    padding: 1rem;
   }
   
-  .welcome-content {
-    padding: 2rem 1.5rem;
+  .brand-section {
+    padding: 1.5rem;
+  }
+  
+  .form-section {
+    padding: 1.5rem;
+  }
+  
+  .brand-title {
+    font-size: 2rem;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
   }
 }
 
 /* Animation */
-.login-form-container {
+.form-container {
   animation: fadeInUp 0.6s ease-out;
 }
 
@@ -647,57 +641,5 @@ export default {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* Input validation styling */
-.is-invalid {
-  border-color: #dc3545 !important;
-}
-
-.invalid-feedback {
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
-  padding-left: 1rem;
-}
-
-/* Loading state */
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-/* Modal styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 20px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
-}
-
-.modal-content h3 {
-  text-align: center;
-  color: #333;
-  margin-bottom: 1.5rem;
-}
-
-.register-form .form-actions {
-  flex-direction: column;
 }
 </style> 

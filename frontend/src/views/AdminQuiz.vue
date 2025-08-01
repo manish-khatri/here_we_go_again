@@ -1,90 +1,138 @@
 <template>
-  <div class="admin-dashboard">
-    <!-- Navigation Header -->
+  <div class="admin-quiz">
+    <!-- Header -->
     <header class="header">
-      <nav class="nav">
-        <router-link to="/admin/dashboard" class="nav-link">Home</router-link>
-        <router-link to="/admin/quiz" class="nav-link active">Quiz</router-link>
-        <router-link to="/admin/summary" class="nav-link">Summary</router-link>
-        <button @click="logout" class="nav-link logout-btn">Logout</button>
-      </nav>
-      <div class="search-container">
-        <input 
-          type="text" 
-          v-model="searchQuery" 
-          placeholder="Search..." 
-          class="search-input"
-        />
+      <div class="header-content">
+        <div class="header-left">
+          <div class="logo">
+            <i class="bi bi-mortarboard-fill"></i>
+            <span>Quiz Master Admin</span>
+          </div>
+        </div>
+        
+        <nav class="nav">
+          <router-link to="/admin/dashboard" class="nav-link">
+            <i class="bi bi-house"></i>
+            Dashboard
+          </router-link>
+          <router-link to="/admin/quiz" class="nav-link active">
+            <i class="bi bi-collection"></i>
+            Quiz Management
+          </router-link>
+          <router-link to="/admin/summary" class="nav-link">
+            <i class="bi bi-bar-chart"></i>
+            Summary
+          </router-link>
+        </nav>
+        
+        <div class="header-right">
+          <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+              placeholder="Search quizzes..."
+            />
+          </div>
+          
+          <div class="user-menu">
+            <button class="user-btn">
+              <i class="bi bi-person-circle"></i>
+              <span>Admin</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu">
+              <button @click="logout" class="dropdown-item">
+                <i class="bi bi-box-arrow-right"></i>
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="welcome">Welcome Admin</div>
     </header>
 
-    <main class="main-content">
-      <!-- Page Header -->
-      <div class="page-header mb-4">
-        <div class="header-content">
-          <div class="header-text">
-            <h1 class="page-title">
-              <i class="bi bi-puzzle-fill"></i>Quiz Management
-            </h1>
-            <p class="page-description">Create and manage quizzes for all subjects</p>
+    <!-- Main Content -->
+    <main class="main">
+      <div class="container">
+        <div class="page-header">
+          <div class="page-title">
+            <h1>Quiz Management</h1>
+            <p>Create and manage quizzes for all subjects</p>
           </div>
-          <button @click="openNewQuizModal" class="btn btn-create">
-            <i class="bi bi-plus-lg"></i>Add Quiz
+          <button @click="openNewQuizModal" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i>
+            Add Quiz
           </button>
         </div>
-      </div>
 
-      <!-- Loading State with Skeleton -->
-      <div v-if="loading" class="skeleton-loader">
-        <div class="skeleton-card" v-for="n in 4" :key="n">
-          <div class="skeleton-header">
-            <div class="skeleton-title"></div>
-            <div class="skeleton-actions"></div>
-          </div>
-          <div class="skeleton-content">
-            <div class="skeleton-text" v-for="i in 3" :key="i"></div>
-          </div>
+        <!-- Loading State -->
+        <div v-if="loading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading quizzes...</p>
         </div>
-      </div>
 
-      <!-- Error State -->
-      <div v-else-if="error" class="alert alert-danger">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-        {{ error }}
-      </div>
-      
-      <!-- Quiz Cards -->
-      <div v-else class="subjects-grid">
-        <div v-if="filteredQuizzes.length > 0" class="row g-4">
-          <div class="col-lg-6" v-for="quiz in filteredQuizzes" :key="quiz.q_id">
-            <div class="subject-card">
-              <div class="card-header">
-                <div class="subject-info">
-                  <div class="subject-icon">
-                    <i class="bi bi-puzzle-fill"></i>
+        <!-- Error State -->
+        <div v-else-if="error" class="error-state">
+          <i class="bi bi-exclamation-triangle"></i>
+          <h3>Oops! Something went wrong</h3>
+          <p>{{ error }}</p>
+          <button @click="refreshQuizzes" class="btn btn-primary">
+            Try Again
+          </button>
+        </div>
+
+        <!-- Quiz Content -->
+        <div v-else class="quiz-content">
+          <div class="section-header">
+            <h2>Quizzes</h2>
+            <span class="quiz-count">{{ filteredQuizzes.length }} quizzes</span>
+          </div>
+
+          <div v-if="filteredQuizzes.length === 0" class="empty-state">
+            <i class="bi bi-puzzle"></i>
+            <h3>No quizzes available</h3>
+            <p>Create your first quiz to get started.</p>
+            <button @click="openNewQuizModal" class="btn btn-primary">
+              <i class="bi bi-plus-circle"></i>
+              Add First Quiz
+            </button>
+          </div>
+
+          <div v-else class="quizzes-grid">
+            <div 
+              v-for="quiz in filteredQuizzes" 
+              :key="quiz.q_id" 
+              class="quiz-card"
+            >
+              <div class="quiz-header">
+                <div class="quiz-info">
+                  <div class="quiz-icon">
+                    <i class="bi bi-puzzle"></i>
                   </div>
                   <div>
-                    <h4 class="subject-name">{{ quiz.q_name }}</h4>
-                    <p class="subject-meta">
-                      <span class="badge bg-primary me-2">{{ quiz.sub_id || 'No Subject' }}</span>
+                    <h3 class="quiz-name">{{ quiz.q_name }}</h3>
+                    <p class="quiz-meta">
+                      <span class="subject-badge">{{ quiz.sub_id || 'No Subject' }}</span>
                       {{ quiz.questions?.length || 0 }} questions
                     </p>
                   </div>
                 </div>
-                <div class="subject-actions">
-                  <button @click="editQuiz(quiz)" class="btn btn-edit" title="Edit Quiz">
+                <div class="quiz-actions">
+                  <button @click="editQuiz(quiz)" class="btn btn-secondary btn-sm">
                     <i class="bi bi-pencil"></i>
+                    Edit
                   </button>
-                  <button @click="deleteQuiz(quiz.q_id)" class="btn btn-delete" title="Delete Quiz">
+                  <button @click="deleteQuiz(quiz.q_id)" class="btn btn-danger btn-sm">
                     <i class="bi bi-trash"></i>
+                    Delete
                   </button>
                 </div>
               </div>
               
               <div class="quiz-details">
                 <div class="detail-item">
-                  <i class="bi bi-calendar3"></i>
+                  <i class="bi bi-calendar"></i>
                   <span>Date: {{ formatDate(quiz.date_of_quiz) }}</span>
                 </div>
                 <div class="detail-item">
@@ -98,256 +146,102 @@
               </div>
 
               <div class="questions-section" v-if="quiz.questions?.length > 0">
-                <h6 class="questions-title">Questions ({{ quiz.questions.length }})</h6>
-                <div class="questions-preview">
-                  <div class="question-preview" v-for="(question, index) in quiz.questions.slice(0, 3)" :key="question.qsn_id">
-                    <span class="question-number">{{ index + 1 }}</span>
-                    <span class="question-text">{{ 
-                      (question.qsn_desc || question.question_text || 'No question text').length > 50 
-                        ? (question.qsn_desc || question.question_text || 'No question text').substring(0, 50) + '...' 
-                        : (question.qsn_desc || question.question_text || 'No question text')
-                    }}</span>
-                    <div class="question-actions">
-                      <button @click="editQuestion(question)" class="btn-edit-question" title="Edit Question">
-                        <i class="bi bi-pencil"></i>
-                      </button>
-                      <button @click="deleteQuestion(question.qsn_id)" class="btn-delete-question" title="Delete Question">
-                        <i class="bi bi-trash"></i>
-                      </button>
-                    </div>
+                <h4>Questions</h4>
+                <div class="questions-list">
+                  <div 
+                    v-for="question in quiz.questions.slice(0, 3)" 
+                    :key="question.q_id" 
+                    class="question-item"
+                  >
+                    <span class="question-text">{{ question.q_text }}</span>
+                    <span class="question-type">{{ question.q_type }}</span>
                   </div>
                   <div v-if="quiz.questions.length > 3" class="more-questions">
                     +{{ quiz.questions.length - 3 }} more questions
                   </div>
                 </div>
               </div>
-
-              <div class="card-footer">
-                <button @click="openNewQuestionModal(quiz.q_id)" class="btn btn-add-question">
-                  <i class="bi bi-plus-circle me-2"></i>Add Question
-                </button>
-              </div>
             </div>
           </div>
-        </div>
-        
-        <!-- Empty State -->
-        <div v-else class="empty-state">
-          <div class="empty-icon">
-            <i class="bi bi-puzzle"></i>
-          </div>
-          <h3>No Quizzes Found</h3>
-          <p>Create your first quiz to get started with question management.</p>
-          <button @click="openNewQuizModal" class="btn btn-create">
-            <i class="bi bi-plus-circle me-2"></i>Create Your First Quiz
-          </button>
         </div>
       </div>
     </main>
 
-    <!-- Quiz Modal -->
-    <div v-if="showNewQuizModal" class="modal-container">
-      <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">
-                <i class="bi bi-puzzle-fill me-2"></i>
-                {{ selectedQuizId ? 'Edit Quiz' : 'Create New Quiz' }}
-              </h5>
-              <button type="button" class="btn-close" @click="closeQuizModal"></button>
-            </div>
-            <div class="modal-body">
-              <form @submit.prevent="saveQuiz" id="quizForm">
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label for="quiz-name" class="form-label">Quiz Name</label>
-                      <input type="text" 
-                             id="quiz-name" 
-                             class="form-control" 
-                             v-model="newQuiz.name" 
-                             placeholder="Enter quiz name"
-                             required />
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label for="subject-select" class="form-label">Subject</label>
-                      <select id="subject-select" 
-                              class="form-select" 
-                              v-model="newQuiz.subjectId" 
-                              required 
-                              :disabled="!!selectedQuizId || subjectsLoading">
-                        <option value="">{{ subjectsLoading ? 'Loading subjects...' : 'Select Subject' }}</option>
-                        <option v-for="subject in availableSubjects" 
-                                :key="subject.sub_id" 
-                                :value="subject.sub_id">
-                          {{ subject.sub_name }}
-                        </option>
-                      </select>
-                      <div class="text-danger small mt-1" v-if="subjectsError">{{ subjectsError }}</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label for="chapter-select" class="form-label">Chapter</label>
-                      <select id="chapter-select" 
-                              class="form-select" 
-                              v-model="newQuiz.chapterId" 
-                              required 
-                              :disabled="!newQuiz.subjectId || !!selectedQuizId || chaptersLoading">
-                        <option value="">
-                          {{ chaptersLoading ? 'Loading chapters...' : 
-                             !newQuiz.subjectId ? 'Select a subject first' : 'Select Chapter' }}
-                        </option>
-                        <option v-for="chapter in chaptersForSelectedSubject" 
-                                :key="chapter.chp_id" 
-                                :value="chapter.chp_id">
-                          {{ chapter.chp_name }}
-                        </option>
-                      </select>
-                      <div class="text-danger small mt-1" v-if="chaptersError">{{ chaptersError }}</div>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label for="quiz-date" class="form-label">Quiz Date</label>
-                      <input type="date" 
-                             id="quiz-date" 
-                             class="form-control" 
-                             v-model="newQuiz.date" 
-                             required />
-                    </div>
-                  </div>
-                </div>
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label for="quiz-duration" class="form-label">Duration (minutes)</label>
-                      <input type="number" 
-                             id="quiz-duration" 
-                             class="form-control" 
-                             v-model="newQuiz.duration" 
-                             min="1" 
-                             placeholder="60"
-                             required />
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label for="quiz-remarks" class="form-label">Remarks (Optional)</label>
-                      <textarea id="quiz-remarks" 
-                            class="form-control" 
-                            v-model="newQuiz.remarks" 
-                            rows="1" 
-                            placeholder="Additional notes about this quiz..."></textarea>
-                    </div>
-                  </div>
-                </div>
-              </form>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="closeQuizModal">Cancel</button>
-              <button type="submit" form="quizForm" class="btn btn-primary">
-                <i class="bi bi-check-circle me-2"></i>
-                {{ selectedQuizId ? 'Update Quiz' : 'Create Quiz' }}
-              </button>
-            </div>
-          </div>
+    <!-- New Quiz Modal -->
+    <div v-if="showNewQuizModal" class="modal" @click="showNewQuizModal = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Add New Quiz</h3>
+          <button @click="showNewQuizModal = false" class="close-btn">
+            <i class="bi bi-x"></i>
+          </button>
         </div>
-      </div>
-    </div>
-
-    <!-- Question Modal -->
-    <div v-if="showNewQuestionModal" class="modal-container">
-      <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">
-                <i class="bi bi-question-circle-fill me-2"></i>
-                {{ selectedQuestionId ? 'Edit Question' : 'Add New Question' }}
-              </h5>
-              <button type="button" class="btn-close" @click="closeQuestionModal"></button>
+        
+        <div class="modal-body">
+          <form @submit.prevent="addQuiz" class="quiz-form">
+            <div class="form-group">
+              <label class="form-label">Quiz Name</label>
+              <input 
+                type="text" 
+                class="form-control"
+                v-model="newQuiz.name" 
+                placeholder="Enter quiz name"
+                required
+              />
             </div>
-            <div class="modal-body">
-              <form @submit.prevent="saveQuestion" id="questionForm">
-                <div class="mb-3" v-if="!selectedQuestionId">
-                  <label for="question-quiz" class="form-label">Quiz</label>
-                  <select id="question-quiz" class="form-select" v-model="newQuestion.quizId" required>
-                    <option value="">Select Quiz</option>
-                    <option v-for="quiz in quizzes" 
-                            :key="quiz.q_id" 
-                            :value="quiz.q_id">
-                      {{ quiz.q_name }}
-                    </option>
-                  </select>
-                </div>
-                
-                <div class="mb-3">
-                  <label for="question-statement" class="form-label">Question Statement</label>
-                  <textarea id="question-statement" 
-                            class="form-control" 
-                            v-model="newQuestion.statement" 
-                            rows="3" 
-                            placeholder="Enter the question statement here..."
-                            required></textarea>
-                </div>
-                
-                <!-- Answer Options -->
-                <div class="mb-4">
-                  <label class="form-label">Answer Options</label>
-                  <div class="row">
-                    <div class="col-md-6 mb-3" v-for="(option, index) in newQuestion.options" :key="index">
-                      <div class="input-group">
-                        <span class="input-group-text">{{ String.fromCharCode(65 + index) }}</span>
-                        <input type="text" 
-                               class="form-control" 
-                               v-model="newQuestion.options[index]" 
-                               :placeholder="'Option ' + String.fromCharCode(65 + index)"
-                               required />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div class="mt-3">
-                    <label class="form-label">Correct Answer</label>
-                    <div class="btn-group w-100" role="group">
-                      <template v-for="(option, index) in newQuestion.options" :key="'radio-' + index">
-                        <input type="radio" 
-                               class="btn-check" 
-                               :id="'option-' + (index + 1)" 
-                               :value="index + 1" 
-                               v-model="newQuestion.correctOption"
-                               required
-                               name="correctOption">
-                        <label class="btn btn-outline-primary" :for="'option-' + (index + 1)">
-                          {{ String.fromCharCode(65 + index) }}
-                        </label>
-                      </template>
-                    </div>
-                  </div>
-                </div>
-                
-              </form>
+            
+            <div class="form-group">
+              <label class="form-label">Subject ID</label>
+              <input 
+                type="text" 
+                class="form-control"
+                v-model="newQuiz.subjectId" 
+                placeholder="Enter subject ID"
+                required
+              />
             </div>
+            
+            <div class="form-group">
+              <label class="form-label">Duration (minutes)</label>
+              <input 
+                type="number" 
+                class="form-control"
+                v-model="newQuiz.duration" 
+                placeholder="Enter duration"
+                required
+              />
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input 
+                type="date" 
+                class="form-control"
+                v-model="newQuiz.date" 
+                required
+              />
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Remarks</label>
+              <textarea 
+                class="form-control"
+                v-model="newQuiz.remarks" 
+                placeholder="Enter remarks (optional)"
+                rows="3"
+              ></textarea>
+            </div>
+            
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="closeQuestionModal">Cancel</button>
-              <button type="button" 
-                      @click="saveAndAddAnother" 
-                      v-if="!selectedQuestionId"
-                      class="btn btn-success">
-                <i class="bi bi-plus-circle me-2"></i>Save & Add Another
+              <button type="button" @click="showNewQuizModal = false" class="btn btn-secondary">
+                Cancel
               </button>
-              <button type="submit" form="questionForm" class="btn btn-primary">
-                <i class="bi bi-check-circle me-2"></i>
-                {{ selectedQuestionId ? 'Update Question' : 'Save Question' }}
+              <button type="submit" class="btn btn-primary" :disabled="addingQuiz">
+                <div v-if="addingQuiz" class="spinner"></div>
+                <span v-else>Add Quiz</span>
               </button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
