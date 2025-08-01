@@ -1,79 +1,161 @@
 <template>
   <div class="quiz-result">
-    <!-- Navigation Header -->
+    <!-- Header -->
     <header class="header">
-      <nav class="nav">
-        <router-link to="/user/dashboard" class="nav-link">Home</router-link>
-        <router-link to="/user/scores" class="nav-link">Scores</router-link>
-        <router-link to="/user/summary" class="nav-link">Summary</router-link>
-        <button @click="logout" class="nav-link logout-btn">Logout</button>
-      </nav>
-      <div class="search-container">
-        <input 
-          type="text" 
-          v-model="searchQuery" 
-          placeholder="Search..." 
-          class="search-input"
-        />
-      </div>
-      <div class="welcome">Welcome {{ authStore.currentUser?.name || 'User' }}</div>
-    </header>
-
-    <main class="main-content">
-      <!-- Back Button -->
-      <div class="back-button-container">
-        <button @click="goBack" class="btn-back">
-          ← Back to Scores
-        </button>
-      </div>
-
-      <!-- Loading State -->
-      <div v-if="loading" class="loading">
-        Loading quiz result details...
-      </div>
-
-      <!-- Error State -->
-      <div v-else-if="error" class="error">
-        {{ error }}
-      </div>
-
-      <!-- Quiz Result Content -->
-      <div v-else-if="quizResult" class="result-content">
-        <!-- Quiz Overview -->
-        <div class="quiz-overview">
-          <h1>Quiz Result Details</h1>
-          <div class="overview-cards">
-            <div class="overview-card">
-              <h3>Quiz Name</h3>
-              <p>{{ quizResult.quiz_name || quizId }}</p>
-            </div>
-            <div class="overview-card">
-              <h3>Date Taken</h3>
-              <p>{{ formatDate(quizResult.time_stamp) }}</p>
-            </div>
-            <div class="overview-card">
-              <h3>Total Score</h3>
-              <p class="score-value">{{ formatScore(quizResult.total_score) }}%</p>
-            </div>
-            <div class="overview-card">
-              <h3>Questions</h3>
-              <p>{{ quizResult.correct_answers || 0 }} / {{ quizResult.total_questions || 0 }} correct</p>
+      <div class="header-content">
+        <div class="header-left">
+          <div class="logo">
+            <i class="bi bi-mortarboard-fill"></i>
+            <span>Quiz Master</span>
+          </div>
+        </div>
+        
+        <nav class="nav">
+          <router-link to="/user/dashboard" class="nav-link">
+            <i class="bi bi-house"></i>
+            Dashboard
+          </router-link>
+          <router-link to="/user/scores" class="nav-link">
+            <i class="bi bi-trophy"></i>
+            Scores
+          </router-link>
+          <router-link to="/user/summary" class="nav-link">
+            <i class="bi bi-bar-chart"></i>
+            Summary
+          </router-link>
+        </nav>
+        
+        <div class="header-right">
+          <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+              placeholder="Search..."
+            />
+          </div>
+          
+          <div class="user-menu">
+            <button class="user-btn">
+              <i class="bi bi-person-circle"></i>
+              <span>{{ authStore.currentUser?.name || 'User' }}</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu">
+              <button @click="logout" class="dropdown-item">
+                <i class="bi bi-box-arrow-right"></i>
+                Logout
+              </button>
             </div>
           </div>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="action-buttons">
-          <button @click="retakeQuiz" class="btn-retake">Retake Quiz</button>
-          <button @click="goToScores" class="btn-scores">View All Scores</button>
-        </div>
       </div>
+    </header>
 
-      <!-- No result found -->
-      <div v-else class="no-result">
-        <h1>Quiz Result Not Found</h1>
-        <p>The quiz result you're looking for could not be found.</p>
-        <button @click="goToScores" class="btn-scores">Back to Scores</button>
+    <!-- Main Content -->
+    <main class="main">
+      <div class="container">
+        <!-- Back Button -->
+        <div class="back-section">
+          <button @click="goBack" class="btn-back">
+            <i class="bi bi-arrow-left"></i>
+            Back to Scores
+          </button>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="loading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading quiz result details...</p>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="error" class="error-state">
+          <i class="bi bi-exclamation-triangle"></i>
+          <h3>Oops! Something went wrong</h3>
+          <p>{{ error }}</p>
+          <button @click="goToScores" class="btn btn-primary">
+            Back to Scores
+          </button>
+        </div>
+
+        <!-- Quiz Result Content -->
+        <div v-else-if="quizResult" class="result-content">
+          <div class="page-header">
+            <div class="page-title">
+              <h1>Quiz Result Details</h1>
+              <p>Review your performance and see how you did</p>
+            </div>
+          </div>
+
+          <!-- Quiz Overview -->
+          <div class="quiz-overview">
+            <div class="overview-grid">
+              <div class="overview-card">
+                <div class="card-icon">
+                  <i class="bi bi-file-text"></i>
+                </div>
+                <div class="card-content">
+                  <h3>Quiz Name</h3>
+                  <p>{{ quizResult.quiz_name || quizId }}</p>
+                </div>
+              </div>
+              
+              <div class="overview-card">
+                <div class="card-icon">
+                  <i class="bi bi-calendar"></i>
+                </div>
+                <div class="card-content">
+                  <h3>Date Taken</h3>
+                  <p>{{ formatDate(quizResult.time_stamp) }}</p>
+                </div>
+              </div>
+              
+              <div class="overview-card score-card">
+                <div class="card-icon">
+                  <i class="bi bi-star"></i>
+                </div>
+                <div class="card-content">
+                  <h3>Total Score</h3>
+                  <p class="score-value">{{ formatScore(quizResult.total_score) }}%</p>
+                </div>
+              </div>
+              
+              <div class="overview-card">
+                <div class="card-icon">
+                  <i class="bi bi-question-circle"></i>
+                </div>
+                <div class="card-content">
+                  <h3>Questions</h3>
+                  <p>{{ quizResult.correct_answers || 0 }} / {{ quizResult.total_questions || 0 }} correct</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="action-buttons">
+            <button @click="retakeQuiz" class="btn btn-primary">
+              <i class="bi bi-arrow-clockwise"></i>
+              Retake Quiz
+            </button>
+            <button @click="goToScores" class="btn btn-secondary">
+              <i class="bi bi-list-ul"></i>
+              View All Scores
+            </button>
+          </div>
+        </div>
+
+        <!-- No result found -->
+        <div v-else class="empty-state">
+          <i class="bi bi-search"></i>
+          <h3>Quiz Result Not Found</h3>
+          <p>The quiz result you're looking for could not be found.</p>
+          <button @click="goToScores" class="btn btn-primary">
+            <i class="bi bi-arrow-left"></i>
+            Back to Scores
+          </button>
+        </div>
       </div>
     </main>
   </div>
@@ -194,153 +276,340 @@ export default {
 </script>
 
 <style scoped>
+/* Modern Quiz Result Design */
 .quiz-result {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--white) 100%);
 }
 
+/* Header */
 .header {
-  background: white;
-  padding: 1rem 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--white);
+  box-shadow: var(--shadow);
+  border-bottom: 1px solid var(--gray-200);
+  padding: 0 2rem;
+}
+
+.header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem 0;
+}
+
+.header-left .logo {
+  display: flex;
+  align-items: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.header-left .logo i {
+  margin-right: 0.75rem;
+  font-size: 1.75rem;
 }
 
 .nav {
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
 }
 
 .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
   text-decoration: none;
-  color: #666;
-  padding: 0.5rem 1rem;
-  border-radius: 5px;
-  transition: all 0.3s;
+  font-weight: 500;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 .nav-link:hover,
 .nav-link.active {
-  background-color: #667eea;
-  color: white;
+  background: var(--primary-light);
+  color: var(--primary-dark);
 }
 
-.logout-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-box i {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-light);
   font-size: 1rem;
 }
 
-.search-container {
-  flex: 1;
-  max-width: 300px;
-  margin: 0 2rem;
+.search-box input {
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 2px solid var(--gray-200);
+  border-radius: 8px;
+  background: var(--white);
+  font-size: 0.875rem;
+  width: 250px;
+  transition: all 0.2s ease;
 }
 
-.search-input {
+.search-box input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(168, 213, 232, 0.1);
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-weight: 500;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.user-btn:hover {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--white);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--gray-200);
+  min-width: 150px;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
+}
+
+.user-menu:hover .dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.welcome {
-  font-weight: bold;
-  color: #333;
+.dropdown-item:hover {
+  background: var(--gray-100);
+  color: var(--error);
 }
 
-.main-content {
+/* Main Content */
+.main {
   padding: 2rem;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
-.back-button-container {
+.container {
+  width: 100%;
+}
+
+.back-section {
   margin-bottom: 2rem;
 }
 
 .btn-back {
-  padding: 0.75rem 1.5rem;
-  background-color: #6c757d;
-  color: white;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
   border: none;
-  border-radius: 5px;
+  color: var(--text);
+  font-weight: 500;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
 }
 
 .btn-back:hover {
-  background-color: #5a6268;
+  background: var(--primary-light);
+  color: var(--primary-dark);
 }
 
-.loading, .error {
+/* Loading State */
+.loading-state {
   text-align: center;
-  padding: 3rem;
-  font-size: 1.2rem;
+  padding: 4rem 2rem;
 }
 
-.loading {
-  color: #667eea;
+.loading-state .spinner {
+  margin: 0 auto 1rem;
 }
 
-.error {
-  color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 5px;
+.loading-state p {
+  color: var(--text-light);
+  font-size: 1rem;
 }
 
-.result-content h1 {
-  color: #333;
+/* Error State */
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.error-state i {
+  font-size: 3rem;
+  color: var(--error);
+  margin-bottom: 1rem;
+}
+
+.error-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.error-state p {
+  color: var(--text-light);
+  margin-bottom: 1.5rem;
+}
+
+/* Result Content */
+.result-content {
+  margin-top: 2rem;
+}
+
+.page-header {
   margin-bottom: 2rem;
-  text-align: center;
 }
 
+.page-title h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.page-title p {
+  color: var(--text-light);
+  font-size: 1rem;
+}
+
+/* Quiz Overview */
 .quiz-overview {
-  background: white;
-  border-radius: 10px;
-  padding: 2rem;
   margin-bottom: 2rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.overview-cards {
+.overview-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
-  margin-top: 1.5rem;
 }
 
 .overview-card {
-  background: #f8f9fa;
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--gray-100);
   padding: 1.5rem;
-  border-radius: 8px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s ease;
 }
 
-.overview-card h3 {
-  margin: 0 0 1rem 0;
-  color: #666;
-  font-size: 0.9rem;
+.overview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.overview-card.score-card {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: var(--white);
+}
+
+.overview-card.score-card .card-content h3,
+.overview-card.score-card .card-content p {
+  color: var(--white);
+}
+
+.card-icon {
+  width: 50px;
+  height: 50px;
+  background: var(--primary-light);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-dark);
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.score-card .card-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--white);
+}
+
+.card-content {
+  flex: 1;
+}
+
+.card-content h3 {
+  font-size: 0.875rem;
   font-weight: 500;
+  color: var(--text-light);
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.overview-card p {
-  margin: 0;
-  font-size: 1.2rem;
+.card-content p {
+  font-size: 1.125rem;
   font-weight: 600;
-  color: #333;
+  color: var(--text);
+  margin: 0;
 }
 
 .score-value {
-  color: #28a745 !important;
-  font-size: 1.8rem !important;
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
 }
 
+/* Action Buttons */
 .action-buttons {
   display: flex;
   gap: 1rem;
@@ -348,65 +617,111 @@ export default {
   margin-top: 2rem;
 }
 
-.btn-retake, .btn-scores {
-  padding: 0.75rem 2rem;
-  border: none;
-  border-radius: 5px;
+.action-buttons .btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
   cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.3s;
 }
 
-.btn-retake {
-  background-color: #667eea;
-  color: white;
-}
-
-.btn-retake:hover {
-  background-color: #5a67d8;
-}
-
-.btn-scores {
-  background-color: #6c757d;
-  color: white;
-}
-
-.btn-scores:hover {
-  background-color: #5a6268;
-}
-
-.no-result {
+/* Empty State */
+.empty-state {
   text-align: center;
-  padding: 3rem;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 4rem 2rem;
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
 }
 
-.no-result h1 {
-  color: #333;
+.empty-state i {
+  font-size: 4rem;
+  color: var(--text-light);
   margin-bottom: 1rem;
 }
 
-.no-result p {
-  color: #666;
-  margin-bottom: 2rem;
+.empty-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: var(--text-light);
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem 0;
+  }
+  
+  .nav {
+    margin-left: 0;
+  }
+  
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .search-box input {
+    width: 200px;
+  }
+  
+  .overview-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
-  .overview-cards {
+  .main {
+    padding: 1rem;
+  }
+  
+  .header {
+    padding: 0 1rem;
+  }
+  
+  .search-box input {
+    width: 150px;
+  }
+  
+  .overview-grid {
     grid-template-columns: 1fr;
   }
   
   .action-buttons {
     flex-direction: column;
-    align-items: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
   }
   
-  .btn-retake, .btn-scores {
+  .nav {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .header-right {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .search-box input {
     width: 100%;
-    max-width: 200px;
   }
 }
 </style>
