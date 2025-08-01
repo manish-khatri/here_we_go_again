@@ -148,8 +148,26 @@
               <select class="form-control" v-model="registerData.role" required>
                 <option value="">Select Role</option>
                 <option value="student">Student</option>
-                <option value="admin">Admin</option>
+                <option value="admin" :disabled="adminExists">
+                  {{ adminExists ? 'Admin (Already exists)' : 'Admin' }}
+                </option>
               </select>
+              <div v-if="adminExists" class="info-message">
+                <i class="bi bi-info-circle"></i>
+                Only one admin account is allowed. Admin role is disabled.
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Date of Birth</label>
+              <input 
+                type="date" 
+                class="form-control"
+                :class="dobError ? 'error' : ''"
+                v-model="registerData.dateOfBirth" 
+                required
+              />
+              <div v-if="dobError" class="error-message">{{ dobError }}</div>
             </div>
 
             <div class="modal-footer">
@@ -195,7 +213,8 @@ export default {
       lastName: '',
       email: '',
       password: '',
-      role: ''
+      role: '',
+      dateOfBirth: ''
     })
     const registerLoading = ref(false)
     const registerError = ref('')
@@ -204,6 +223,7 @@ export default {
     const fullNameError = ref('')
     const qualificationError = ref('')
     const dobError = ref('')
+    const adminExists = ref(false)
 
     // Validation methods
     const validateEmail = () => {
@@ -232,13 +252,18 @@ export default {
 
     const validateQualification = () => {
       qualificationError.value = validateField(registerData.value.role, [validators.required])
+      
+      // Additional check for admin role
+      if (!qualificationError.value && registerData.value.role === 'admin' && adminExists.value) {
+        qualificationError.value = 'Admin account already exists. Please select Student role.'
+      }
     }
 
     const validateDob = () => {
-      dobError.value = validateField(registerData.value.role, [validators.required])
+      dobError.value = validateField(registerData.value.dateOfBirth, [validators.required])
       if (!dobError.value) {
         const today = new Date()
-        const birth = new Date(registerData.value.role) // This line seems to be a bug, should be dateOfBirth.value
+        const birth = new Date(registerData.value.dateOfBirth)
         const age = today.getFullYear() - birth.getFullYear()
         if (age < 13) {
           dobError.value = 'Must be at least 13 years old'
@@ -285,6 +310,8 @@ export default {
     }
 
     const handleRegister = async () => {
+      console.log('Registration started...')
+      
       // Validate all fields
       await validateRegEmail()
       validateRegPassword()
@@ -292,12 +319,22 @@ export default {
       validateQualification()
       validateDob()
       
+      console.log('Validation errors:', {
+        email: registerEmailError.value,
+        password: registerPasswordError.value,
+        fullName: fullNameError.value,
+        qualification: qualificationError.value,
+        dob: dobError.value
+      })
+      
       if (registerEmailError.value || registerPasswordError.value || fullNameError.value || 
           qualificationError.value || dobError.value) {
+        console.log('Validation failed, stopping registration')
         return
       }
 
       try {
+        console.log('Starting registration API call...')
         registerLoading.value = true
         registerError.value = ''
         
@@ -306,10 +343,14 @@ export default {
           password: registerData.value.password,
           fullName: registerData.value.firstName + ' ' + registerData.value.lastName,
           qualification: registerData.value.role,
-          dateOfBirth: registerData.value.role // This line seems to be a bug, should be dateOfBirth.value
+          dateOfBirth: registerData.value.dateOfBirth
         }
         
+        console.log('Registration data:', userData)
+        
         const result = await authStore.register(userData)
+        console.log('Registration result:', result)
+        
         if (result.success) {
           // New users are always customers, so redirect to user dashboard
           router.push('/user/dashboard')
@@ -333,7 +374,8 @@ export default {
         lastName: '',
         email: '',
         password: '',
-        role: ''
+        role: '',
+        dateOfBirth: ''
       }
       registerError.value = ''
       registerEmailError.value = ''
@@ -343,9 +385,22 @@ export default {
       dobError.value = ''
     }
 
+    const checkAdminExists = async () => {
+      try {
+        const response = await fetch('/api/check/admin-exists')
+        if (response.ok) {
+          const data = await response.json()
+          adminExists.value = data.exists
+        }
+      } catch (error) {
+        console.error('Error checking admin existence:', error)
+      }
+    }
+
     const openRegister = () => {
       console.log('Opening registration modal...')
       console.log('Current showRegister value:', showRegisterModal.value)
+      checkAdminExists() // Check if admin exists when opening modal
       showRegisterModal.value = true
       console.log('New showRegister value:', showRegisterModal.value)
     }
@@ -369,6 +424,7 @@ export default {
       fullNameError,
       qualificationError,
       dobError,
+      adminExists,
       
       // Methods
       handleLogin,
@@ -540,6 +596,15 @@ export default {
   color: var(--error);
   font-size: 0.875rem;
   margin-top: 0.5rem;
+}
+
+.info-message {
+  color: var(--primary);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .form-footer {

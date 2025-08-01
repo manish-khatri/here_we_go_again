@@ -103,7 +103,8 @@ export const useAuthStore = defineStore('auth', () => {
           user_name: userData.fullName,
           user_pass: userData.password,
           qualification: userData.qualification,
-          dob: userData.dateOfBirth
+          dob: userData.dateOfBirth,
+          role: userData.qualification  // Send the role to backend
         })
       })
       
@@ -111,14 +112,15 @@ export const useAuthStore = defineStore('auth', () => {
       
       if (response.ok) {
         // Success - user registered
+        const assignedRole = userData.qualification === 'admin' ? 'admin' : 'customer'
         const newUser = {
           email: userData.email,
           name: userData.fullName,
-          role: 'customer'
+          role: assignedRole
         }
 
         user.value = newUser
-        userRole.value = 'customer'
+        userRole.value = assignedRole
         isAuthenticated.value = true
 
         // Store in localStorage

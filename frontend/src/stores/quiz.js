@@ -96,6 +96,63 @@ export const useQuizStore = defineStore('quiz', () => {
     }
   }
 
+  const editChapter = async (chapterId, chapterData) => {
+    try {
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch(`/api/chapters/${chapterId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chp_name: chapterData.name,
+          chp_desc: chapterData.description
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        await fetchSubjects() // Refresh subjects list
+        return { success: true, chapter: data }
+      } else {
+        throw new Error(data.error || 'Failed to edit chapter')
+      }
+    } catch (error) {
+      console.error('Edit chapter error:', error)
+      error.value = error.message
+      return { success: false, error: error.message }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const deleteChapter = async (chapterId) => {
+    try {
+      loading.value = true
+      error.value = null
+      
+      const response = await fetch(`/api/chapters/${chapterId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      if (response.ok) {
+        await fetchSubjects() // Refresh subjects list
+        return { success: true }
+      } else {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete chapter')
+      }
+    } catch (error) {
+      console.error('Delete chapter error:', error)
+      error.value = error.message
+      return { success: false, error: error.message }
+    } finally {
+      loading.value = false
+    }
+  }
+
   const addQuiz = async (quizData) => {
     try {
       loading.value = true
@@ -342,6 +399,8 @@ export const useQuizStore = defineStore('quiz', () => {
     // Actions
     addSubject,
     addChapter,
+    editChapter,
+    deleteChapter,
     addQuiz,
     addQuestion,
     submitQuizScore,

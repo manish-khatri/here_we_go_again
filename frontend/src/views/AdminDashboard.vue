@@ -258,6 +258,53 @@
         </div>
       </div>
     </div>
+
+    <!-- Edit Chapter Modal -->
+    <div v-if="showEditChapterModal" class="modal" @click="showEditChapterModal = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Edit Chapter</h3>
+          <button @click="showEditChapterModal = false" class="close-btn">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <form @submit.prevent="updateChapter" class="chapter-form">
+            <div class="form-group">
+              <label class="form-label">Chapter Name</label>
+              <input 
+                type="text" 
+                class="form-control"
+                v-model="editingChapter.name" 
+                placeholder="Enter chapter name"
+                required
+              />
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea 
+                class="form-control"
+                v-model="editingChapter.description" 
+                placeholder="Enter chapter description"
+                rows="3"
+              ></textarea>
+            </div>
+            
+            <div class="modal-footer">
+              <button type="button" @click="showEditChapterModal = false" class="btn btn-secondary">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="updatingChapter">
+                <div v-if="updatingChapter" class="spinner"></div>
+                <span v-else">Update Chapter</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -275,9 +322,11 @@ export default {
     const searchQuery = ref('')
     const showNewSubjectModal = ref(false)
     const showNewChapterModal = ref(false)
+    const showEditChapterModal = ref(false)
     const selectedSubjectId = ref(null)
     const addingSubject = ref(false)
     const addingChapter = ref(false)
+    const updatingChapter = ref(false)
     
     const newSubject = ref({
       name: '',
@@ -285,6 +334,12 @@ export default {
     })
     
     const newChapter = ref({
+      name: '',
+      description: ''
+    })
+
+    const editingChapter = ref({
+      id: null,
       name: '',
       description: ''
     })
@@ -343,8 +398,33 @@ export default {
     }
 
     const editChapter = (chapter) => {
-      // Implement edit functionality
-      console.log('Edit chapter:', chapter)
+      editingChapter.value = {
+        id: chapter.chp_id,
+        name: chapter.chp_name,
+        description: chapter.chp_desc
+      }
+      showEditChapterModal.value = true
+    }
+
+    const updateChapter = async () => {
+      try {
+        updatingChapter.value = true
+        const result = await quizStore.editChapter(editingChapter.value.id, {
+          name: editingChapter.value.name,
+          description: editingChapter.value.description
+        })
+        
+        if (result.success) {
+          showEditChapterModal.value = false
+          editingChapter.value = { id: null, name: '', description: '' }
+        } else {
+          console.error('Error updating chapter:', result.error)
+        }
+      } catch (error) {
+        console.error('Error updating chapter:', error)
+      } finally {
+        updatingChapter.value = false
+      }
     }
 
     const deleteChapter = async (chapterId) => {
@@ -366,10 +446,13 @@ export default {
       searchQuery,
       showNewSubjectModal,
       showNewChapterModal,
+      showEditChapterModal,
       newSubject,
       newChapter,
+      editingChapter,
       addingSubject,
       addingChapter,
+      updatingChapter,
       filteredSubjects,
       logout,
       refreshSubjects,
@@ -377,6 +460,7 @@ export default {
       openNewChapterModal,
       addChapter,
       editChapter,
+      updateChapter,
       deleteChapter
     }
   }

@@ -37,6 +37,16 @@ def register():
     if User.query.filter_by(user_mail=data['user_mail']).first():
         return jsonify({'error': 'User already exists'}), 400
     
+    # Check if trying to register as admin
+    requested_role = data.get('role', 'customer')  # Default to customer if no role specified
+    if requested_role == 'admin':
+        # Check if admin already exists
+        admin_role = Role.query.filter_by(name='admin').first()
+        if admin_role:
+            existing_admin = User.query.join(User.roles).filter(Role.name == 'admin').first()
+            if existing_admin:
+                return jsonify({'error': 'Admin account already exists. Only one admin is allowed.'}), 400
+    
     # Convert date string to date object
     try:
         dob = datetime.strptime(data['dob'], '%Y-%m-%d').date()
@@ -55,11 +65,17 @@ def register():
     )
     db.session.add(user)
     db.session.commit()
-    # Assign 'customer' role
-    user_role = Role.query.filter_by(name='customer').first()
+    
+    # Assign appropriate role
+    if requested_role == 'admin':
+        user_role = Role.query.filter_by(name='admin').first()
+    else:
+        user_role = Role.query.filter_by(name='customer').first()
+    
     if user_role:
         user.roles.append(user_role)
         db.session.commit()
+    
     return jsonify({'message': 'User registered successfully'}), 201
 
 # User login endpoint
@@ -776,6 +792,15 @@ def validate_email():
         return jsonify({'valid': False, 'error': 'Email already registered'}), 400
     
     return jsonify({'valid': True, 'message': 'Email is valid'}), 200
+
+@app.get('/api/check/admin-exists')
+def check_admin_exists():
+    """Check if an admin account already exists"""
+    admin_role = Role.query.filter_by(name='admin').first()
+    if admin_role:
+        existing_admin = User.query.join(User.roles).filter(Role.name == 'admin').first()
+        return jsonify({'exists': bool(existing_admin)}), 200
+    return jsonify({'exists': False}), 200
 
 @app.post('/api/validate/quiz-data')
 @roles_required('admin')
