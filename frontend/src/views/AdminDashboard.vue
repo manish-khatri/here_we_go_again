@@ -263,7 +263,7 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue'
-import { useQuizStore } from '@/stores/quizStore'
+import { useQuizStore } from '@/stores/quiz'
 import { useRouter } from 'vue-router'
 
 export default {
